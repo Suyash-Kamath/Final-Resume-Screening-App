@@ -1,0 +1,100 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.columns {
+  display: flex;
+  gap: 2rem;
+}
+
+.left-column, .right-column {
+  flex: 1;
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.left-column textarea {
+  font-size: 1rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  resize: vertical;
+}
+
+.right-column input[type="file"] {
+  margin-bottom: 1rem;
+}
+
+button {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover {
+  background: #0056b3;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+table th {
+  background: #f1f1f1;
+}
