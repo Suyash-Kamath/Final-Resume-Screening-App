@@ -1,6 +1,7 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import List
 import pdfplumber
 import docx
@@ -10,7 +11,9 @@ import re
 from openai import OpenAI
 from dotenv import load_dotenv
 import motor.motor_asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
+from passlib.context import CryptContext
+import jwt
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,10 +33,71 @@ MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 db = mongo_client["resume_screening"]
 mis_collection = db["mis"]
+recruiters_collection = db["recruiters"]
+
+# JWT setup
+SECRET_KEY = os.getenv("JWT_SECRET", "supersecretkey")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 # Make sure to set OPENAI_API_KEY in your .env file
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# --- Recruiter Auth Helpers ---
+def verify_password(plain, hashed):
+    return pwd_context.verify(plain, hashed)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+async def get_recruiter(username: str):
+    return await recruiters_collection.find_one({"username": username})
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_recruiter(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except jwt.PyJWTError:
+        raise credentials_exception
+    recruiter = await get_recruiter(username)
+    if recruiter is None:
+        raise credentials_exception
+    return recruiter
+
+# --- Auth Endpoints ---
+@app.post("/register")
+async def register(form: OAuth2PasswordRequestForm = Depends()):
+    existing = await recruiters_collection.find_one({"username": form.username})
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed = get_password_hash(form.password)
+    await recruiters_collection.insert_one({"username": form.username, "hashed_password": hashed})
+    return {"msg": "Recruiter registered"}
+
+@app.post("/login")
+async def login(form: OAuth2PasswordRequestForm = Depends()):
+    recruiter = await recruiters_collection.find_one({"username": form.username})
+    if not recruiter or not verify_password(form.password, recruiter["hashed_password"]):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    access_token = create_access_token(data={"sub": recruiter["username"]})
+    return {"access_token": access_token, "token_type": "bearer", "recruiter_name": recruiter["username"]}
 
 def extract_text_from_pdf(filepath):
     with pdfplumber.open(filepath) as pdf:
@@ -272,11 +336,11 @@ Reason (if Rejected): ...
 
 @app.post("/analyze-resumes/")
 async def analyze_resumes(
-    recruiter_name: str = Form(...),
     job_description: str = Form(...),
     hiring_type: str = Form(...),
     level: str = Form(...),
-    files: List[UploadFile] = File(...)
+    files: List[UploadFile] = File(...),
+    recruiter=Depends(get_current_recruiter)
 ):
     results = []
     shortlisted = 0
@@ -319,7 +383,7 @@ async def analyze_resumes(
         os.unlink(tmp_path)
     # Save MIS record
     await mis_collection.insert_one({
-        "recruiter_name": recruiter_name,
+        "recruiter_name": recruiter["username"],
         "total_resumes": len(files),
         "shortlisted": shortlisted,
         "rejected": rejected,
