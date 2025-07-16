@@ -9,6 +9,8 @@ import os
 import re
 from openai import OpenAI
 from dotenv import load_dotenv
+import motor.motor_asyncio
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,6 +24,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# MongoDB setup
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
+db = mongo_client["resume_screening"]
+mis_collection = db["mis"]
 
 # Make sure to set OPENAI_API_KEY in your .env file
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -264,12 +272,15 @@ Reason (if Rejected): ...
 
 @app.post("/analyze-resumes/")
 async def analyze_resumes(
+    recruiter_name: str = Form(...),
     job_description: str = Form(...),
     hiring_type: str = Form(...),
     level: str = Form(...),
     files: List[UploadFile] = File(...)
 ):
     results = []
+    shortlisted = 0
+    rejected = 0
     for file in files:
         filename = file.filename or ""
         suffix = os.path.splitext(filename)[1].lower()
@@ -290,9 +301,56 @@ async def analyze_resumes(
         analysis = analyze_resume(job_description, resume_text, hiring_type, level)
         if isinstance(analysis, dict):
             analysis["filename"] = filename
+            # Decision extraction
+            decision = analysis.get("decision")
+            if not decision and analysis.get("result_text"):
+                match = re.search(r"Decision:\s*(✅ Shortlist|❌ Reject)", analysis["result_text"])
+                if match:
+                    decision = match.group(1)
+            if decision and "Shortlist" in decision:
+                shortlisted += 1
+            elif decision and "Reject" in decision:
+                rejected += 1
+            analysis["decision"] = ("Shortlisted" if decision and "Shortlist" in decision else
+                                     "Rejected" if decision and "Reject" in decision else "-")
             results.append(analysis)
         else:
             results.append({"filename": filename, "error": analysis})
         os.unlink(tmp_path)
+    # Save MIS record
+    await mis_collection.insert_one({
+        "recruiter_name": recruiter_name,
+        "total_resumes": len(files),
+        "shortlisted": shortlisted,
+        "rejected": rejected,
+        "timestamp": datetime.utcnow()
+    })
     return JSONResponse(content={"results": results})
+
+@app.get("/mis-summary")
+async def mis_summary():
+    pipeline = [
+        {"$group": {
+            "_id": "$recruiter_name",
+            "total_uploads": {"$sum": 1},
+            "total_resumes": {"$sum": "$total_resumes"},
+            "total_shortlisted": {"$sum": "$shortlisted"},
+            "total_rejected": {"$sum": "$rejected"},
+        }},
+        {"$sort": {"_id": 1}}  # Sort by recruiter name
+    ]
+    summary = []
+    async for row in mis_collection.aggregate(pipeline):
+        summary.append({
+            "recruiter_name": row["_id"],
+            "uploads": row["total_uploads"],
+            "resumes": row["total_resumes"],
+            "shortlisted": row["total_shortlisted"],
+            "rejected": row["total_rejected"]
+        })
+    return {"summary": summary}
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
  
