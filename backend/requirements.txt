@@ -9,3 +9,4 @@ passlib[bcrypt]
 PyJWT
 openai
 pydantic
+docx2txt
