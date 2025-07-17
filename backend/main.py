@@ -105,34 +105,46 @@ def extract_text_from_pdf(filepath):
 
 from docx import Document
 
-def extract_text_from_docx(filepath):
+def extract_text_from_docx(filepath: str) -> str:
     """
-    Extracts text from both paragraphs and tables in a .docx file.
-    Handles Naukri resumes and other structured documents.
+    Enhanced DOCX extractor for Naukri resumes and other structured documents.
+    Tries structured paragraph and table parsing first, then falls back to docx2txt.
     """
     try:
-        doc = Document(filepath)
+        from docx import Document
+        import docx2txt
+
         full_text = []
+
+        # Primary extraction using python-docx
+        doc = Document(filepath)
 
         # Extract paragraphs
         for para in doc.paragraphs:
             line = para.text.strip()
-            if line:
+            if line and line not in full_text:
                 full_text.append(line)
 
-        # Extract text from tables
+        # Extract from tables
         for table in doc.tables:
             for row in table.rows:
                 row_data = []
                 for cell in row.cells:
-                    text = cell.text.strip()
-                    if text and text not in row_data:  # avoid duplicates
-                        row_data.append(text)
+                    cell_text = cell.text.strip()
+                    if cell_text and cell_text not in row_data:
+                        row_data.append(cell_text)
                 if row_data:
                     full_text.append(" | ".join(row_data))
 
-        # Combine and return
-        return "\n".join(full_text)
+        # Fallback to docx2txt if primary fails
+        if not full_text or len("".join(full_text).strip()) < 30:
+            fallback_text = docx2txt.process(filepath)
+            if fallback_text and fallback_text.strip():
+                full_text = [line.strip() for line in fallback_text.splitlines() if line.strip()]
+
+        # Final cleanup: remove exact duplicates while preserving order
+        final_text = "\n".join(dict.fromkeys(full_text))
+        return final_text.strip() if final_text else "❌ Could not extract usable text from this resume."
 
     except Exception as e:
         return f"❌ Error extracting text from DOCX: {e}"
