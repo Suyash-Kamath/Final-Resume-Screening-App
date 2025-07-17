@@ -103,24 +103,40 @@ def extract_text_from_pdf(filepath):
     with pdfplumber.open(filepath) as pdf:
         return '\n'.join(page.extract_text() for page in pdf.pages if page.extract_text())
 
+from docx import Document
+
 def extract_text_from_docx(filepath):
-    doc = docx.Document(filepath)
-    full_text = []
+    """
+    Extracts text from both paragraphs and tables in a .docx file.
+    Handles Naukri resumes and other structured documents.
+    """
+    try:
+        doc = Document(filepath)
+        full_text = []
 
-    # Extract regular paragraphs
-    for para in doc.paragraphs:
-        if para.text.strip():
-            full_text.append(para.text.strip())
+        # Extract paragraphs
+        for para in doc.paragraphs:
+            line = para.text.strip()
+            if line:
+                full_text.append(line)
 
-    # Extract text from tables (optional but often needed)
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                cell_text = cell.text.strip()
-                if cell_text:
-                    full_text.append(cell_text)
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                row_data = []
+                for cell in row.cells:
+                    text = cell.text.strip()
+                    if text and text not in row_data:  # avoid duplicates
+                        row_data.append(text)
+                if row_data:
+                    full_text.append(" | ".join(row_data))
 
-    return '\n'.join(full_text)
+        # Combine and return
+        return "\n".join(full_text)
+
+    except Exception as e:
+        return f"❌ Error extracting text from DOCX: {e}"
+
 
 
 
