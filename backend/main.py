@@ -105,7 +105,24 @@ def extract_text_from_pdf(filepath):
 
 def extract_text_from_docx(filepath):
     doc = docx.Document(filepath)
-    return '\n'.join(para.text for para in doc.paragraphs)
+    full_text = []
+
+    # Extract regular paragraphs
+    for para in doc.paragraphs:
+        if para.text.strip():
+            full_text.append(para.text.strip())
+
+    # Extract text from tables (optional but often needed)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                cell_text = cell.text.strip()
+                if cell_text:
+                    full_text.append(cell_text)
+
+    return '\n'.join(full_text)
+
+
 
 def analyze_resume(jd, resume_text, hiring_choice, level_choice):
     prompt = ""
