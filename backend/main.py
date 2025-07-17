@@ -22,7 +22,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://final-resume-screening-app.vercel.app"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://final-resume-screening-app-4drk.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -379,6 +382,18 @@ Reason (if Rejected): ...
         } if usage else None
     }
 
+import re
+
+def extract_candidate_name(resume_text, filename):
+    # This function is now unused, but kept for reference
+    return ""
+
+def get_hiring_type_label(hiring_type):
+    return {"1": "Sales", "2": "IT", "3": "Non-Sales"}.get(hiring_type, hiring_type)
+
+def get_level_label(level):
+    return {"1": "Fresher", "2": "Experienced"}.get(level, level)
+
 @app.post("/analyze-resumes/")
 async def analyze_resumes(
     job_description: str = Form(...),
@@ -390,8 +405,11 @@ async def analyze_resumes(
     results = []
     shortlisted = 0
     rejected = 0
+    history = []
+    hiring_type_label = get_hiring_type_label(hiring_type)
+    level_label = get_level_label(level)
     for file in files:
-        filename = file.filename or ""
+        filename = file.filename or "Unknown"
         suffix = os.path.splitext(filename)[1].lower()
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(await file.read())
@@ -402,9 +420,18 @@ async def analyze_resumes(
             resume_text = extract_text_from_docx(tmp_path)
         else:
             os.unlink(tmp_path)
+            error_msg = "Unsupported file type. Only PDF and DOCX are allowed."
             results.append({
                 "filename": filename,
-                "error": "Unsupported file type. Only PDF and DOCX are allowed."
+                "error": error_msg
+            })
+            history.append({
+                "resume_name": filename,
+                "hiring_type": hiring_type_label,
+                "level": level_label,
+                "match_percent": None,
+                "decision": "Error",
+                "details": error_msg
             })
             continue
         analysis = analyze_resume(job_description, resume_text, hiring_type, level)
@@ -420,42 +447,66 @@ async def analyze_resumes(
                 shortlisted += 1
             elif decision and "Reject" in decision:
                 rejected += 1
-            analysis["decision"] = ("Shortlisted" if decision and "Shortlist" in decision else
-                                     "Rejected" if decision and "Reject" in decision else "-")
+            decision_label = ("Shortlisted" if decision and "Shortlist" in decision else
+                              "Rejected" if decision and "Reject" in decision else "-")
+            analysis["decision"] = decision_label
             results.append(analysis)
+            history.append({
+                "resume_name": filename,
+                "hiring_type": hiring_type_label,
+                "level": level_label,
+                "match_percent": analysis.get("match_percent"),
+                "decision": decision_label,
+                "details": analysis.get("result_text") or analysis.get("error", "")
+            })
         else:
             results.append({"filename": filename, "error": analysis})
+            history.append({
+                "resume_name": filename,
+                "hiring_type": hiring_type_label,
+                "level": level_label,
+                "match_percent": None,
+                "decision": "Error",
+                "details": analysis
+            })
         os.unlink(tmp_path)
-    # Save MIS record
+    # Save MIS record with history
     await mis_collection.insert_one({
         "recruiter_name": recruiter["username"],
         "total_resumes": len(files),
         "shortlisted": shortlisted,
         "rejected": rejected,
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.utcnow(),
+        "history": history
     })
     return JSONResponse(content={"results": results})
 
 @app.get("/mis-summary")
 async def mis_summary():
     pipeline = [
-        {"$group": {
-            "_id": "$recruiter_name",
-            "total_uploads": {"$sum": 1},
-            "total_resumes": {"$sum": "$total_resumes"},
-            "total_shortlisted": {"$sum": "$shortlisted"},
-            "total_rejected": {"$sum": "$rejected"},
-        }},
-        {"$sort": {"_id": 1}}  # Sort by recruiter name
+        {
+            "$group": {
+                "_id": "$recruiter_name",
+                "uploads": {"$sum": 1},
+                "total_resumes": {"$sum": "$total_resumes"},
+                "shortlisted": {"$sum": "$shortlisted"},
+                "rejected": {"$sum": "$rejected"},
+                "history": {"$push": "$history"}
+            }
+        },
+        {"$sort": {"_id": 1}}
     ]
     summary = []
     async for row in mis_collection.aggregate(pipeline):
+        # Flatten the list of lists in history
+        flat_history = [item for sublist in row["history"] for item in sublist]
         summary.append({
             "recruiter_name": row["_id"],
-            "uploads": row["total_uploads"],
+            "uploads": row["uploads"],
             "resumes": row["total_resumes"],
-            "shortlisted": row["total_shortlisted"],
-            "rejected": row["total_rejected"]
+            "shortlisted": row["shortlisted"],
+            "rejected": row["rejected"],
+            "history": flat_history
         })
     return {"summary": summary}
 

@@ -125,6 +125,20 @@ function App() {
     setMisLoading(false);
   };
 
+  const hiringTypeLabel = (val) => {
+    if (!val) return '-';
+    if (val === '1' || val === 1) return 'Sales';
+    if (val === '2' || val === 2) return 'IT';
+    if (val === '3' || val === 3) return 'Non-Sales';
+    return val;
+  };
+  const levelLabel = (val) => {
+    if (!val) return '-';
+    if (val === '1' || val === 1) return 'Fresher';
+    if (val === '2' || val === 2) return 'Experienced';
+    return val;
+  };
+
   return (
     <div className="container">
       <h1>Resume Screening</h1>
@@ -251,6 +265,7 @@ function App() {
                     <th>Total Resumes</th>
                     <th>Shortlisted</th>
                     <th>Rejected</th>
+                    <th>History</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -261,6 +276,44 @@ function App() {
                       <td>{row.resumes}</td>
                       <td>{row.shortlisted}</td>
                       <td>{row.rejected}</td>
+                      <td>
+                        {row.history && row.history.length > 0 ? (
+                          <details>
+                            <summary>Show</summary>
+                            <table style={{ fontSize: 12, marginTop: 8 }}>
+                              <thead>
+                                <tr>
+                                  <th>Resume Name</th>
+                                  <th>Hiring Type</th>
+                                  <th>Level</th>
+                                  <th>Match %</th>
+                                  <th>Decision</th>
+                                  <th>Details</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {row.history.map((h, hidx) => (
+                                  <tr key={hidx}>
+                                    <td>{h.resume_name || 'Unknown'}</td>
+                                    <td>{hiringTypeLabel(h.hiring_type)}</td>
+                                    <td>{levelLabel(h.level)}</td>
+                                    <td>{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
+                                    <td>{h.decision || '-'}</td>
+                                    <td>
+                                      <details>
+                                        <summary>Show</summary>
+                                        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>{h.details || '-'}</pre>
+                                      </details>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </details>
+                        ) : (
+                          <span>-</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
