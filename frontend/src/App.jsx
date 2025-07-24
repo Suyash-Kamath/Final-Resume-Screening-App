@@ -130,6 +130,7 @@ function App() {
     if (val === '1' || val === 1) return 'Sales';
     if (val === '2' || val === 2) return 'IT';
     if (val === '3' || val === 3) return 'Non-Sales';
+    if (val === '4' || val === 4) return 'Sales Support';
     return val;
   };
   const levelLabel = (val) => {
@@ -191,6 +192,7 @@ function App() {
                     <option value="1">Sales</option>
                     <option value="2">IT</option>
                     <option value="3">Non-Sales</option>
+                    <option value="4">Sales Support</option>
                   </select>
                 </label>
                 <label style={{ marginLeft: 16 }}>

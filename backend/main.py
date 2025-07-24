@@ -344,7 +344,67 @@ Cons:
 - ...
 Decision: ✅ Shortlist or ❌ Reject
 Reason (if Rejected): ...
+"""     
+    elif hiring_choice == "4":
+        if level_choice == "1":
+            prompt = f"""
+You are a professional HR assistant AI screening resumes for a **Sales Support Fresher** role.
+
+--- Job Description ---
+{jd}
+
+--- Candidate Resume ---
+{resume_text}
+
+--- Screening Criteria ---
+1. Location: Must be strictly local.
+2. Age: As per job description.
+3. Education: 12th pass & above.
+4. Gender: As per job description.
+
+Note: Everything should match the Job Description.
+
+--- Response Format ---
+Match %: XX%
+Pros:
+- ...
+Cons:
+- ...
+Decision: ✅ Shortlist or ❌ Reject
+Reason (if Rejected): ...
 """
+        elif level_choice == "2":
+            prompt = f"""
+You are a professional HR assistant AI screening resumes for a **Sales Support Experienced** role.
+
+--- Job Description ---
+{jd}
+
+--- Candidate Resume ---
+{resume_text}
+
+--- Screening Criteria ---
+1. Location: Must be strictly local.
+2. Age: As per job description ("up to" logic preferred).
+3. Total Experience: Add all types of sales support
+4. Relevant Experience: Must match industry (strict).
+5. Education: 12th pass & above accepted.
+6. Gender: As per job description.
+7. Skills: Skills should align with relevant experience.
+8. Stability: Ignore if 1 job <1 year; Reject if 2+ jobs each <1 year.
+
+Note: Everything should match the Job Description.
+
+--- Response Format ---
+Match %: XX%
+Pros:
+- ...
+Cons:
+- ...
+Decision: ✅ Shortlist or ❌ Reject
+Reason (if Rejected): ...
+"""
+
     if not prompt:
         return "❌ Error: Invalid hiring or level choice provided."
 
@@ -390,7 +450,7 @@ def extract_candidate_name(resume_text, filename):
     return ""
 
 def get_hiring_type_label(hiring_type):
-    return {"1": "Sales", "2": "IT", "3": "Non-Sales"}.get(hiring_type, hiring_type)
+    return {"1": "Sales", "2": "IT", "3": "Non-Sales","4":"Sales Support"}.get(hiring_type, hiring_type)
 
 def get_level_label(level):
     return {"1": "Fresher", "2": "Experienced"}.get(level, level)
