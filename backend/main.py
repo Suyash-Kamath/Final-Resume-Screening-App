@@ -170,7 +170,10 @@ You are a professional HR assistant AI screening resumes for a **Sales Fresher**
 {resume_text}
 
 --- Screening Criteria ---
-1. Location: Must be strictly local.
+1. Location: 
+   - Candidate must be either from the job location city (e.g., Kolkata) or nearby cities (e.g., Durgapur) within feasible travel distance.
+   - If candidate is not in the exact city but lives in a nearby town and the job allows remote or field sales operations, they should be considered.
+   - Candidate should be able to travel to the main office once a month for reporting.
 2. Age: As per job description.
 3. Education: 12th pass & above.
 4. Gender: As per job description.
@@ -197,7 +200,10 @@ You are a professional HR assistant AI screening resumes for a **Sales Experienc
 {resume_text}
 
 --- Screening Criteria ---
-1. Location: Must be strictly local.
+1. Location: 
+   - Candidate must be either from the job location city (e.g., Kolkata) or nearby cities (e.g., Durgapur) within feasible travel distance.
+   - If candidate is not in the exact city but lives in a nearby town and the job allows remote or field sales operations, they should be considered.
+   - Candidate should be able to travel to the main office once a month for reporting.
 2. Age: As per job description ("up to" logic preferred).
 3. Total Experience: Add all types of sales (health + motor, etc.).
 4. Relevant Experience: Must match industry (strict).
