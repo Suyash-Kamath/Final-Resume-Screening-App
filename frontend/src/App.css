@@ -174,12 +174,15 @@ body, #root {
   text-align: left;
 }
 
+/* Remove this block to avoid label alignment conflicts */
+/*
 .left-column label {
   display: inline-flex;
   align-items: center;
   margin-right: 16px;
   margin-bottom: 0.5rem;
 }
+*/
 
 /* Dropdown styling with custom arrow */
 .left-column select {
@@ -399,7 +402,7 @@ pre {
   white-space: normal;
   text-align: left;
   justify-content: space-between;
-  flex-direction: column;
+  flex-direction: row;
   position: relative;
 }
 
@@ -446,8 +449,16 @@ pre {
 
 /* Make sure labels/selects don't stretch too wide */
 .field-row label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   flex: 1 1 0;
   min-width: 120px;
+  font-size: 1.1rem;
+  gap: 0.3rem;
+}
+.field-row select {
+  width: 100%;
 }
 
 /* Responsive: stack fields on small screens */
