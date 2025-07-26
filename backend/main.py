@@ -14,6 +14,10 @@ import motor.motor_asyncio
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
+from pdf2image import convert_from_path
+from PIL import Image
+import base64
+from io import BytesIO
 
 # Load environment variables from .env file
 load_dotenv()
@@ -103,9 +107,58 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": recruiter["username"]})
     return {"access_token": access_token, "token_type": "bearer", "recruiter_name": recruiter["username"]}
 
+
+
 def extract_text_from_pdf(filepath):
     with pdfplumber.open(filepath) as pdf:
-        return '\n'.join(page.extract_text() for page in pdf.pages if page.extract_text())
+        extracted_text = '\n'.join(
+            page.extract_text() for page in pdf.pages if page.extract_text()
+        )
+        if extracted_text.strip():
+            return extracted_text.strip()
+
+    # If no text was found using pdfplumber, fallback to OCR using OpenAI
+    try:
+        images = convert_from_path(filepath)
+        full_ocr_text = []
+
+        for img in images:
+            buffered = BytesIO()
+            img.save(buffered, format="PNG")
+            img_base64 = base64.b64encode(buffered.getvalue()).decode()
+
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{img_base64}"
+                                }
+                            },
+                            {
+                                "type": "text",
+                                "text": "Please extract all readable text from this image of a resume."
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.3,
+                max_tokens=1500
+            )
+
+            ocr_text = response.choices[0].message.content.strip()
+            if ocr_text:
+                full_ocr_text.append(ocr_text)
+
+        return "\n".join(full_ocr_text) if full_ocr_text else "❌ No text found in image using OCR."
+
+    except Exception as e:
+        return f"❌ Error during OCR fallback: {e}"
+
 
 from docx import Document
 
