@@ -64,6 +64,7 @@ body, #root {
   transition: border 0.2s;
   background: #fff;
   width: 220px;
+  color: #232946;
 }
 .auth-box input:focus {
   border: 1.5px solid #2563eb;
@@ -107,6 +108,41 @@ body, #root {
 .auth-box div {
   font-size: 13px;
   margin-top: 0.7rem;
+}
+
+/* Always set input and textarea text color for both light and dark browser themes */
+.auth-box input[type="text"],
+.auth-box input[type="password"],
+.left-column textarea {
+  color: #232946;
+  background: #fff;
+}
+
+/* Fix for forced dark mode in Chrome: explicitly set background and color for autofill */
+.auth-box input[type="text"]:-webkit-autofill,
+.auth-box input[type="password"]:-webkit-autofill,
+.left-column textarea:-webkit-autofill {
+  -webkit-text-fill-color: #232946 !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  background-color: #fff !important;
+}
+
+/* Optional: Respect user's dark mode, but keep input readable */
+@media (prefers-color-scheme: dark) {
+  .auth-box input[type="text"],
+  .auth-box input[type="password"],
+  .left-column textarea {
+    color: #fff;
+    background: #232946;
+    border-color: #bfc9d9;
+  }
+  .auth-box input[type="text"]:-webkit-autofill,
+  .auth-box input[type="password"]:-webkit-autofill,
+  .left-column textarea:-webkit-autofill {
+    -webkit-text-fill-color: #fff !important;
+    box-shadow: 0 0 0 1000px #232946 inset !important;
+    background-color: #232946 !important;
+  }
 }
 
 /* MAIN CONTAINER (after login) */
@@ -187,7 +223,7 @@ body, #root {
 /* Dropdown styling with custom arrow */
 .left-column select {
   margin-left: 8px;
-  padding: 0.45rem 2.2rem 0.45rem 0.7rem; /* extra right padding for icon */
+  padding: 0.45rem 2.2rem 0.45rem 0.7rem;
   border-radius: 6px;
   border: 1.5px solid #bfc9d9;
   background: #fff;
@@ -223,6 +259,7 @@ body, #root {
   background: #fff;
   transition: border 0.2s;
   box-sizing: border-box;
+  color: #232946;
 }
 .left-column textarea:focus {
   border: 1.5px solid #2563eb;
