@@ -92,7 +92,8 @@ async def get_current_recruiter(token: str = Depends(oauth2_scheme)):
 # --- Auth Endpoints ---
 @app.post("/register")
 async def register(form: OAuth2PasswordRequestForm = Depends()):
-    existing = await recruiters_collection.find_one({"username": form.username})
+    username = form.username.strip()
+    existing = await recruiters_collection.find_one({"username": username})
     if existing:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed = get_password_hash(form.password)
@@ -101,7 +102,8 @@ async def register(form: OAuth2PasswordRequestForm = Depends()):
 
 @app.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
-    recruiter = await recruiters_collection.find_one({"username": form.username})
+    username = form.username.strip()
+    recruiter = await recruiters_collection.find_one({"username": username})
     if not recruiter or not verify_password(form.password, recruiter["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token = create_access_token(data={"sub": recruiter["username"]})
