@@ -141,47 +141,46 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <h1>Resume Screening</h1>
-      {/* Auth section */}
+    <>
       {!token ? (
-        <div className="auth-box">
-          <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
-          <form onSubmit={handleAuth} style={{ marginBottom: 8 }}>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Recruiter Username"
-              required
-              style={{ marginRight: 8 }}
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              style={{ marginRight: 8 }}
-            />
-            <button type="submit" disabled={authLoading}>
-              {authLoading ? (authMode === 'login' ? 'Logging in...' : 'Registering...') : (authMode === 'login' ? 'Login' : 'Register')}
+        <div className="login-container">
+          <h1>Resume Screening</h1>
+          <div className="auth-box">
+            <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
+            <form onSubmit={handleAuth} style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Recruiter Username"
+                required
+                style={{ marginBottom: 8 }}
+              />
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Password"
+                required
+                style={{ marginBottom: 8 }}
+              />
+              <button type="submit" disabled={authLoading}>
+                {authLoading ? (authMode === 'login' ? 'Logging in...' : 'Registering...') : (authMode === 'login' ? 'Login' : 'Register')}
+              </button>
+            </form>
+            <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} style={{ fontSize: 12 }}>
+              {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Login'}
             </button>
-          </form>
-          <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} style={{ fontSize: 12 }}>
-            {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Login'}
-          </button>
-          {authError && <div style={{ color: authError.includes('successful') ? 'green' : 'red', marginTop: 8 }}>{authError}</div>}
+            {authError && <div style={{ color: authError.includes('successful') ? 'green' : 'red', marginTop: 8 }}>{authError}</div>}
+          </div>
         </div>
       ) : (
-        <div className="auth-box" style={{ marginBottom: 16 }}>
-          <span>Logged in as <b>{recruiterName}</b></span>
-          <button onClick={handleLogout} style={{ marginLeft: 16 }}>Logout</button>
-        </div>
-      )}
-      {/* Main app only if logged in */}
-      {token && (
-        <>
+        <div className="main-container">
+          <h1>Resume Screening</h1>
+          <div className="auth-box" style={{ marginBottom: 16 }}>
+            <span>Logged in as <b>{recruiterName}</b></span>
+            <button onClick={handleLogout} style={{ marginLeft: 16 }}>Logout</button>
+          </div>
           <div className="columns">
             <div className="left-column">
               <h2>Job Description</h2>
@@ -213,15 +212,39 @@ function App() {
             </div>
             <div className="right-column">
               <h2>Upload Resumes</h2>
-              <input
-                type="file"
-                accept=".pdf,.docx"
-                multiple
-                onChange={handleFileChange}
-              />
-              <button onClick={handleSubmit} style={{ marginTop: '1rem' }} disabled={loading}>
-                {loading ? 'Evaluating...' : 'Evaluate'}
-              </button>
+              <div className="upload-row">
+  <label className="custom-file-upload">
+    <input
+      type="file"
+      accept=".pdf,.docx"
+      multiple
+      onChange={handleFileChange}
+      style={{ display: 'none' }}
+    />
+    Choose Files
+  </label>
+  <button onClick={handleSubmit} disabled={loading}>
+    {loading ? 'Evaluating...' : 'Evaluate'}
+  </button>
+  {/* Show selected file names or count */}
+  {files.length > 0 && (
+  <div className="file-list">
+    {files.map((file, idx) => (
+      <span className="file-item" key={idx}>
+        {file.name}
+        <button
+          type="button"
+          className="remove-file"
+          onClick={() => setFiles(files.filter((_, i) => i !== idx))}
+          title="Remove"
+        >
+          &times;
+        </button>
+      </span>
+    ))}
+  </div>
+)}
+</div>
               <div style={{ marginTop: '2rem' }}>
                 {results.length > 0 && (
                   <table>
@@ -253,7 +276,7 @@ function App() {
               </div>
             </div>
           </div>
-          <div style={{ marginTop: '3rem' }}>
+          <div style={{ marginTop: '3rem' }} className="mis-summary-section">
             <h2>MIS Summary</h2>
             <button onClick={fetchMIS} disabled={misLoading} style={{ marginBottom: '1rem' }}>
               {misLoading ? 'Loading...' : 'Show MIS Summary'}
@@ -322,10 +345,11 @@ function App() {
               </table>
             )}
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </>
   );
 }
+
 
 export default App;
