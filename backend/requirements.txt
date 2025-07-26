@@ -10,3 +10,5 @@ PyJWT
 openai
 pydantic
 docx2txt
+pdf2image
+Pillow
