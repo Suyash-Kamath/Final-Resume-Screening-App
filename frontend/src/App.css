@@ -436,3 +436,25 @@ pre {
 .remove-file:hover {
   background: #fbe9ea;
 }
+
+.field-row {
+  display: flex;
+  gap: 1.2rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+/* Make sure labels/selects don't stretch too wide */
+.field-row label {
+  flex: 1 1 0;
+  min-width: 120px;
+}
+
+/* Responsive: stack fields on small screens */
+@media (max-width: 600px) {
+  .field-row {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch;
+  }
+}

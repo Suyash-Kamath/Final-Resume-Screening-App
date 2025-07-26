@@ -184,7 +184,7 @@ function App() {
           <div className="columns">
             <div className="left-column">
               <h2>Job Description</h2>
-              <div style={{ marginBottom: '1rem' }}>
+              <div style={{ marginBottom: '1rem' }} className="field-row" >
                 <label>
                   Hiring Type:
                   <select value={hiringType} onChange={e => setHiringType(e.target.value)} style={{ marginLeft: 8 }}>
