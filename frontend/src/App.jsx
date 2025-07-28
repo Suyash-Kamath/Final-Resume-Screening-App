@@ -266,7 +266,7 @@ function App() {
                           <td>
                             <details>
                               <summary>Show</summary>
-                              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{res.result_text || res.error}</pre>
+                              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}> {(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, '$1')}</pre>
                             </details>
                           </td>
                         </tr>
