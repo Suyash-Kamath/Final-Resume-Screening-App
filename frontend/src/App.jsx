@@ -145,7 +145,11 @@ function App() {
     <>
       {!token ? (
         <div className="login-container">
+
           <h1>ProHire</h1>
+          <p className='tagline'>
+            Apply karo chahe kahin se, shortlisting hogi yahin se.
+          </p>
           <div className="auth-box">
             <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
             <form onSubmit={handleAuth} style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -178,6 +182,9 @@ function App() {
       ) : (
         <div className="main-container">
           <h1>ProHire</h1>
+          <p className='tagline'>
+            Apply karo chahe kahin se, shortlisting hogi yahin se.
+          </p>
           <div className="auth-box" style={{ marginBottom: 16 }}>
             <span>Logged in as <b>{recruiterName}</b></span>
             <button onClick={handleLogout} style={{ marginLeft: 16 }}>Logout</button>
@@ -214,38 +221,38 @@ function App() {
             <div className="right-column">
               <h2>Upload Resumes</h2>
               <div className="upload-row">
-  <label className="custom-file-upload">
-    <input
-      type="file"
-      accept=".pdf,.docx"
-      multiple
-      onChange={handleFileChange}
-      style={{ display: 'none' }}
-    />
-    Choose Files
-  </label>
-  <button onClick={handleSubmit} disabled={loading}>
-    {loading ? 'Evaluating...' : 'Evaluate'}
-  </button>
-  {/* Show selected file names or count */}
-  {files.length > 0 && (
-  <div className="file-list">
-    {files.map((file, idx) => (
-      <span className="file-item" key={idx}>
-        {file.name}
-        <button
-          type="button"
-          className="remove-file"
-          onClick={() => setFiles(files.filter((_, i) => i !== idx))}
-          title="Remove"
-        >
-          &times;
-        </button>
-      </span>
-    ))}
-  </div>
-)}
-</div>
+                <label className="custom-file-upload">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx"
+                    multiple
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                  />
+                  Choose Files
+                </label>
+                <button onClick={handleSubmit} disabled={loading}>
+                  {loading ? 'Evaluating...' : 'Evaluate'}
+                </button>
+                {/* Show selected file names or count */}
+                {files.length > 0 && (
+                  <div className="file-list">
+                    {files.map((file, idx) => (
+                      <span className="file-item" key={idx}>
+                        {file.name}
+                        <button
+                          type="button"
+                          className="remove-file"
+                          onClick={() => setFiles(files.filter((_, i) => i !== idx))}
+                          title="Remove"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div style={{ marginTop: '2rem' }}>
                 {results.length > 0 && (
                   <table>

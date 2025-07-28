@@ -1,5 +1,6 @@
 /* Reset and base styles */
-body, #root {
+body,
+#root {
   min-height: 100vh;
   margin: 0;
   padding: 0;
@@ -32,6 +33,17 @@ body, #root {
   color: #232946;
   text-align: center;
 }
+
+.tagline {
+  font-style: italic;
+  font-size: 0.95rem;
+  color: #4b5563;
+  text-align: center;
+  margin-top: -1rem;
+  margin-bottom: 1.8rem;
+  line-height: 1.4;
+}
+
 
 .auth-box {
   background: #f1f5fb;
@@ -66,6 +78,7 @@ body, #root {
   width: 220px;
   color: #232946;
 }
+
 .auth-box input:focus {
   border: 1.5px solid #2563eb;
 }
@@ -81,16 +94,17 @@ body, #root {
   border: none;
   border-radius: 5px;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0,123,255,0.08);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.08);
   transition: background 0.2s, transform 0.1s;
   cursor: pointer;
 }
+
 .auth-box form button[type="submit"]:hover {
   background: linear-gradient(90deg, #0056b3 60%, #2563eb 100%);
   transform: translateY(-1px) scale(1.04);
 }
 
-.auth-box > button:not([type="submit"]) {
+.auth-box>button:not([type="submit"]) {
   font-size: 13px;
   background: none;
   color: #2563eb;
@@ -101,7 +115,8 @@ body, #root {
   text-decoration: underline;
   transition: color 0.2s;
 }
-.auth-box > button:not([type="submit"]):hover {
+
+.auth-box>button:not([type="submit"]):hover {
   color: #007bff;
 }
 
@@ -129,6 +144,7 @@ body, #root {
 
 /* Optional: Respect user's dark mode, but keep input readable */
 @media (prefers-color-scheme: dark) {
+
   .auth-box input[type="text"],
   .auth-box input[type="password"],
   .left-column textarea {
@@ -136,6 +152,7 @@ body, #root {
     background: #232946;
     border-color: #bfc9d9;
   }
+
   .auth-box input[type="text"]:-webkit-autofill,
   .auth-box input[type="password"]:-webkit-autofill,
   .left-column textarea:-webkit-autofill {
@@ -191,20 +208,22 @@ body, #root {
   min-height: 400px;
 }
 
-.left-column, .right-column {
+.left-column,
+.right-column {
   flex: 1;
   min-width: 320px;
   background: #f9faff;
   padding: 2rem 1.5rem;
   border-radius: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
 
-.left-column h2, .right-column h2 {
+.left-column h2,
+.right-column h2 {
   font-size: 1.2rem;
   font-weight: 600;
   margin-bottom: 1.2rem;
@@ -234,7 +253,7 @@ body, #root {
   font-family: inherit;
   transition: border 0.2s, box-shadow 0.2s;
   outline: none;
-  box-shadow: 0 1px 4px rgba(60,72,100,0.04);
+  box-shadow: 0 1px 4px rgba(60, 72, 100, 0.04);
   appearance: none;
   cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='gray' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%23667' stroke-width='2' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
@@ -242,6 +261,7 @@ body, #root {
   background-position: right 0.7rem center;
   background-size: 1.1em;
 }
+
 .left-column select:focus {
   border: 1.5px solid #2563eb;
   box-shadow: 0 0 0 2px #c7d7fe;
@@ -263,6 +283,7 @@ body, #root {
   box-sizing: border-box;
   color: #232946;
 }
+
 .left-column textarea:focus {
   border: 1.5px solid #2563eb;
 }
@@ -281,9 +302,10 @@ button:not(.auth-box button) {
   font-size: 1rem;
   cursor: pointer;
   font-weight: 500;
-  box-shadow: 0 2px 8px rgba(0,123,255,0.08);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.08);
   transition: background 0.2s, transform 0.1s;
 }
+
 button:not(.auth-box button):hover {
   background: linear-gradient(90deg, #0056b3 60%, #2563eb 100%);
   transform: translateY(-2px) scale(1.03);
@@ -300,19 +322,24 @@ table {
   box-shadow: 0 2px 8px rgba(60, 72, 100, 0.04);
   font-size: 0.98rem;
 }
-table th, table td {
+
+table th,
+table td {
   border-bottom: 1px solid #e5e7eb;
   padding: 0.85rem 0.75rem;
   text-align: left;
 }
+
 table th {
   background: #f1f5fb;
   font-weight: 600;
   color: #374151;
 }
+
 table tr:last-child td {
   border-bottom: none;
 }
+
 table tr:hover {
   background: #f3f7fd;
   transition: background 0.2s;
@@ -343,11 +370,14 @@ pre {
 
 
 @media (max-width: 900px) {
-  body, #root {
+
+  body,
+  #root {
     align-items: flex-start;
     justify-content: flex-start;
     min-height: unset;
   }
+
   .login-container,
   .main-container {
     padding: 1.2rem;
@@ -357,18 +387,22 @@ pre {
     max-width: 100vw;
     width: 100vw;
   }
+
   .columns {
     flex-direction: column;
     gap: 1.5rem;
     width: 100%;
   }
-  .left-column, .right-column {
+
+  .left-column,
+  .right-column {
     min-width: unset;
     max-width: unset;
     padding: 1.2rem;
     border-radius: 0;
     box-shadow: none;
   }
+
   h1 {
     font-size: 1.5rem;
   }
@@ -378,6 +412,7 @@ pre {
   width: 8px;
   background: #f1f5fb;
 }
+
 ::-webkit-scrollbar-thumb {
   background: #bfc9d9;
   border-radius: 4px;
@@ -411,12 +446,13 @@ pre {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,123,255,0.08);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.08);
   transition: background 0.2s, transform 0.1s;
   margin-right: 1rem;
   border: none;
   text-align: center;
 }
+
 .custom-file-upload:hover {
   background: linear-gradient(90deg, #0056b3 60%, #2563eb 100%);
   transform: translateY(-2px) scale(1.03);
@@ -441,7 +477,7 @@ pre {
   display: flex;
   align-items: center;
   margin-bottom: 2px;
-  box-shadow: 0 1px 3px rgba(60,72,100,0.07);
+  box-shadow: 0 1px 3px rgba(60, 72, 100, 0.07);
   width: 160px;
   min-height: 38px;
   word-break: break-all;
@@ -452,7 +488,7 @@ pre {
   position: relative;
 }
 
-.file-item > button.remove-file {
+.file-item>button.remove-file {
   align-self: flex-end;
   margin-top: 0.2em;
   margin-left: 0;
@@ -463,6 +499,7 @@ pre {
     gap: 0.3rem;
     margin-left: 0.5rem;
   }
+
   .file-item {
     width: 100px;
     font-size: 0.92rem;
@@ -486,9 +523,11 @@ pre {
   width: 22px;
   line-height: 1;
 }
+
 .remove-file:hover {
   background: #fdecef;
 }
+
 .field-row {
   display: flex;
   gap: 1.2rem;
@@ -506,6 +545,7 @@ pre {
   font-size: 1.1rem;
   gap: 0.3rem;
 }
+
 .field-row select {
   width: 100%;
 }
@@ -518,10 +558,14 @@ pre {
     align-items: stretch;
   }
 }
+
 @media (max-width: 900px) {
-  table, pre {
+
+  table,
+  pre {
     width: 100% !important;
   }
+
   .columns {
     flex-direction: column;
   }
