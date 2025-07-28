@@ -104,6 +104,7 @@ function App() {
       });
       const data = await response.json();
       setResults(data.results || []);
+      setFiles([]);
     } catch (err) {
       setResults([]);
       alert('Error connecting to backend.');
@@ -144,7 +145,7 @@ function App() {
     <>
       {!token ? (
         <div className="login-container">
-          <h1>Resume Screening</h1>
+          <h1>ProHire</h1>
           <div className="auth-box">
             <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
             <form onSubmit={handleAuth} style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -176,7 +177,7 @@ function App() {
         </div>
       ) : (
         <div className="main-container">
-          <h1>Resume Screening</h1>
+          <h1>ProHire</h1>
           <div className="auth-box" style={{ marginBottom: 16 }}>
             <span>Logged in as <b>{recruiterName}</b></span>
             <button onClick={handleLogout} style={{ marginLeft: 16 }}>Logout</button>
