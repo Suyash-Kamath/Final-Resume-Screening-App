@@ -148,7 +148,7 @@ function App() {
 
           <h1>ProHire</h1>
           <p className='tagline'>
-            Apply karo chahe kahin se, shortlisting hogi yahin se.
+            Apply karo chahe kahin se, shortlisting hoga yahin se.
           </p>
           <div className="auth-box">
             <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
@@ -183,7 +183,7 @@ function App() {
         <div className="main-container">
           <h1>ProHire</h1>
           <p className='tagline'>
-            Apply karo chahe kahin se, shortlisting hogi yahin se.
+            Apply karo chahe kahin se, shortlisting hoga yahin se.
           </p>
           <div className="auth-box" style={{ marginBottom: 16 }}>
             <span>Logged in as <b>{recruiterName}</b></span>
