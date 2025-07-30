@@ -14,7 +14,6 @@ import motor.motor_asyncio
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
-from pdf2image import convert_from_path
 from PIL import Image
 import base64
 from io import BytesIO
@@ -207,6 +206,64 @@ def extract_text_from_docx(filepath: str) -> str:
 
     except Exception as e:
         return f"❌ Error extracting text from DOCX: {e}"
+
+
+def extract_text_from_image(filepath: str) -> str:
+    """
+    Extract text from image files using OpenAI's Vision API (GPT-4 Vision).
+    Supports common image formats like PNG, JPG, JPEG, etc.
+    """
+    try:
+        print(f"Starting OCR processing for file: {filepath}")  # Debug log
+        
+        # Check if file exists
+        if not os.path.exists(filepath):
+            return f"❌ Error: File {filepath} not found"
+        
+        # Read the image file
+        with open(filepath, "rb") as image_file:
+            image_data = image_file.read()
+            print(f"Image file size: {len(image_data)} bytes")  # Debug log
+            
+            # Encode to base64
+            base64_image = base64.b64encode(image_data).decode('utf-8')
+            print(f"Base64 encoding completed, length: {len(base64_image)}")  # Debug log
+            
+            # Use OpenAI's Vision API to extract text
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Please extract all the text from this image. Return only the extracted text without any additional formatting or explanations."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=1000,
+                temperature=0.1
+            )
+            
+            extracted_text = response.choices[0].message.content
+            print(f"OCR completed, extracted text length: {len(extracted_text) if extracted_text else 0}")  # Debug log
+            
+            if extracted_text and extracted_text.strip():
+                return extracted_text.strip()
+            else:
+                return "❌ Could not extract text from this image. Please ensure the image contains clear, readable text."
+                
+    except Exception as e:
+        print(f"Error in OCR processing: {str(e)}")  # Debug log
+        return f"❌ Error extracting text from image: {e}"
 
 
 
@@ -533,6 +590,11 @@ async def analyze_resumes(
     for file in files:
         filename = file.filename or "Unknown"
         suffix = os.path.splitext(filename)[1].lower()
+        print(f"Processing file: {filename} with suffix: {suffix}")  # Debug log
+        
+        # Define supported image extensions
+        supported_images = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"]
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(await file.read())
             tmp_path = tmp.name
@@ -540,9 +602,13 @@ async def analyze_resumes(
             resume_text = extract_text_from_pdf(tmp_path)
         elif suffix == ".docx":
             resume_text = extract_text_from_docx(tmp_path)
+        elif suffix in supported_images:
+            print(f"Processing image file: {filename} with suffix: {suffix}")  # Debug log
+            resume_text = extract_text_from_image(tmp_path)
         else:
             os.unlink(tmp_path)
-            error_msg = "Unsupported file type. Only PDF and DOCX are allowed."
+            error_msg = f"Unsupported file type: {suffix}. Only PDF, DOCX, and image files (JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed."
+            print(f"File rejected: {filename} with suffix: {suffix}")  # Debug log
             results.append({
                 "filename": filename,
                 "error": error_msg
