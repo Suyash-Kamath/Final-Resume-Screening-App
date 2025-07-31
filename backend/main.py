@@ -29,7 +29,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://final-resume-screening-app-4drk.onrender.com",
-        "https://final-resume-screening-app.vercel.app"
+        "https://final-resume-screening-app.vercel.app",
+        "http://localhost:4173"
     ],
     allow_credentials=True,
     allow_methods=["*"],
