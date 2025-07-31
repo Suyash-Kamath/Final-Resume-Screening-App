@@ -13,3 +13,4 @@ docx2txt                   # Fallback DOCX extractor
 Pillow                     # Image processing (used with pytesseract)
 pdf2image                  # Converts PDFs to images
 pytesseract                # Tesseract OCR engine wrapper
+logging

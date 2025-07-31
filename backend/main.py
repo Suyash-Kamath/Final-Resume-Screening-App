@@ -21,6 +21,9 @@ from pdf2image import convert_from_path
 import pytesseract
 import platform
 import shutil
+import logging
+logging.basicConfig(level=logging.INFO)
+
 if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Suyash Kamath\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Only for Windows
 elif platform.system() == "Darwin":
@@ -199,8 +202,10 @@ def extract_text_from_image(filepath: str) -> str:
     Extract text from an image using pytesseract OCR.
     """
     try:
+        logging.info(f"Using Tesseract at: {pytesseract.pytesseract.tesseract_cmd}")
         image = Image.open(filepath)
         text = pytesseract.image_to_string(image, lang='eng')
+        logging.info(f"OCR Text Extracted: {text[:100]}")  # Log only first 100 chars
         return text.strip() if text.strip() else "❌ No text found in image using OCR."
     except Exception as e:
         return f"❌ Error extracting text from image: {e}"
