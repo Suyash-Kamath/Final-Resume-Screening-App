@@ -12,3 +12,4 @@ pydantic
 docx2txt
 Pillow
 pdf2image
+pytesseract

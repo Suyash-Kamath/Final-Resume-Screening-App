@@ -18,6 +18,13 @@ from PIL import Image
 import base64
 from io import BytesIO
 from pdf2image import convert_from_path
+import pytesseract
+import platform
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Suyash Kamath\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Only for Windows
+
+
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -120,42 +127,16 @@ def extract_text_from_pdf(filepath):
         if extracted_text.strip():
             return extracted_text.strip()
 
-    # If no text was found using pdfplumber, fallback to OCR using OpenAI
+    
     try:
         images = convert_from_path(filepath)
         full_ocr_text = []
 
         for img in images:
-            buffered = BytesIO()
-            img.save(buffered, format="PNG")
-            img_base64 = base64.b64encode(buffered.getvalue()).decode()
+            text = pytesseract.image_to_string(img, lang='eng')
+            if text.strip():
+                full_ocr_text.append(text.strip())
 
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{img_base64}"
-                                }
-                            },
-                            {
-                                "type": "text",
-                                "text": "Please extract all readable text from this image of a resume."
-                            }
-                        ]
-                    }
-                ],
-                temperature=0.3,
-                max_tokens=1500
-            )
-
-            ocr_text = response.choices[0].message.content.strip()
-            if ocr_text:
-                full_ocr_text.append(ocr_text)
 
         return "\n".join(full_ocr_text) if full_ocr_text else "❌ No text found in image using OCR."
 
@@ -212,60 +193,15 @@ def extract_text_from_docx(filepath: str) -> str:
 
 def extract_text_from_image(filepath: str) -> str:
     """
-    Extract text from image files using OpenAI's Vision API (GPT-4 Vision).
-    Supports common image formats like PNG, JPG, JPEG, etc.
+    Extract text from an image using pytesseract OCR.
     """
     try:
-        print(f"Starting OCR processing for file: {filepath}")  # Debug log
-        
-        # Check if file exists
-        if not os.path.exists(filepath):
-            return f"❌ Error: File {filepath} not found"
-        
-        # Read the image file
-        with open(filepath, "rb") as image_file:
-            image_data = image_file.read()
-            print(f"Image file size: {len(image_data)} bytes")  # Debug log
-            
-            # Encode to base64
-            base64_image = base64.b64encode(image_data).decode('utf-8')
-            print(f"Base64 encoding completed, length: {len(base64_image)}")  # Debug log
-            
-            # Use OpenAI's Vision API to extract text
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "Please extract all the text from this image. Return only the extracted text without any additional formatting or explanations."
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens=1000,
-                temperature=0.1
-            )
-            
-            extracted_text = response.choices[0].message.content
-            print(f"OCR completed, extracted text length: {len(extracted_text) if extracted_text else 0}")  # Debug log
-            
-            if extracted_text and extracted_text.strip():
-                return extracted_text.strip()
-            else:
-                return "❌ Could not extract text from this image. Please ensure the image contains clear, readable text."
-                
+        image = Image.open(filepath)
+        text = pytesseract.image_to_string(image, lang='eng')
+        return text.strip() if text.strip() else "❌ No text found in image using OCR."
     except Exception as e:
-        print(f"Error in OCR processing: {str(e)}")  # Debug log
         return f"❌ Error extracting text from image: {e}"
+
 
 
 
