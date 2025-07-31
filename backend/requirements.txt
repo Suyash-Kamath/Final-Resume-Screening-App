@@ -1,15 +1,15 @@
 fastapi
-uvicorn
-python-multipart
-pdfplumber
-python-docx
-python-dotenv
-motor
-passlib[bcrypt]
-PyJWT
-openai
-pydantic
-docx2txt
-Pillow
-pdf2image
-pytesseract
+uvicorn[standard]          # Includes necessary extras like websockets
+python-multipart           # For handling form data & file uploads
+pdfplumber                 # For extracting text from PDFs
+python-docx                # For parsing DOCX files
+python-dotenv              # For loading environment variables from .env
+motor                      # Async MongoDB driver
+passlib[bcrypt]            # For secure password hashing
+PyJWT                      # For JWT token encoding/decoding
+openai                     # For GPT-4 API access
+pydantic                   # For FastAPI model validation
+docx2txt                   # Fallback DOCX extractor
+Pillow                     # Image processing (used with pytesseract)
+pdf2image                  # Converts PDFs to images
+pytesseract                # Tesseract OCR engine wrapper

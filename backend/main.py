@@ -20,10 +20,13 @@ from io import BytesIO
 from pdf2image import convert_from_path
 import pytesseract
 import platform
+import shutil
 if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r'C:\Users\Suyash Kamath\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Only for Windows
-
-
+elif platform.system() == "Darwin":
+    pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
+else:
+    pytesseract.pytesseract.tesseract_cmd = shutil.which("tesseract") or "/usr/bin/tesseract"
 
 
 # Load environment variables from .env file
