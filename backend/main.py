@@ -17,6 +17,7 @@ import jwt
 from PIL import Image
 import base64
 from io import BytesIO
+from pdf2image import convert_from_path
 
 # Load environment variables from .env file
 load_dotenv()
