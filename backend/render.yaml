@@ -5,7 +5,4 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port 8000
     build:
-      # This tells Render to install packages from apt.txt
-      aptPackages:
-        - tesseract-ocr
-        - poppler-utils
+      aptInstall: true
