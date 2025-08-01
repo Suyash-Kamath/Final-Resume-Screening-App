@@ -2,6 +2,7 @@ services:
   - type: web
     name: resume-ocr-service
     env: python
+    rootDir: backend
     region: oregon
     plan: free
     buildCommand: pip install -r requirements.txt
