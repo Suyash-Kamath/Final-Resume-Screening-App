@@ -22,8 +22,10 @@ from pdf2image import convert_from_path
 # Load environment variables from .env file
 load_dotenv()
 
-app = FastAPI()
 
+main_app = FastAPI()
+app = FastAPI()
+app.mount("/backend", main_app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
