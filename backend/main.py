@@ -32,7 +32,8 @@ app.add_middleware(
         "http://localhost:5173",
         "https://final-resume-screening-app-4drk.onrender.com",
         "https://final-resume-screening-app.vercel.app",
-        "http://localhost:4173"
+        "http://localhost:4173",
+        "https://prohire.probusinsurance.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -93,7 +94,7 @@ async def get_current_recruiter(token: str = Depends(oauth2_scheme)):
     return recruiter
 
 # --- Auth Endpoints ---
-@app.post("/register")
+@main_app.post("/register")
 async def register(form: OAuth2PasswordRequestForm = Depends()):
     username = form.username.strip()
     existing = await recruiters_collection.find_one({"username": username})
@@ -103,7 +104,7 @@ async def register(form: OAuth2PasswordRequestForm = Depends()):
     await recruiters_collection.insert_one({"username": form.username, "hashed_password": hashed})
     return {"msg": "Recruiter registered"}
 
-@app.post("/login")
+@main_app.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
     username = form.username.strip()
     recruiter = await recruiters_collection.find_one({"username": username})
@@ -577,7 +578,7 @@ def get_hiring_type_label(hiring_type):
 def get_level_label(level):
     return {"1": "Fresher", "2": "Experienced"}.get(level, level)
 
-@app.post("/analyze-resumes/")
+@main_app.post("/analyze-resumes/")
 async def analyze_resumes(
     job_description: str = Form(...),
     hiring_type: str = Form(...),
@@ -673,7 +674,7 @@ async def analyze_resumes(
     })
     return JSONResponse(content={"results": results})
 
-@app.get("/mis-summary")
+@main_app.get("/mis-summary")
 async def mis_summary():
     pipeline = [
         {
@@ -702,14 +703,17 @@ async def mis_summary():
         })
     return {"summary": summary}
 
-@app.get("/health")
+@main_app.get("/health")
 async def health():
     return {"status": "ok"}
 
-@app.get("/")
+@main_app.get("/")
 async def root():
     return {"message": "Backend is live!"}
 
+@main_app.get("/")
+async def backend_root():
+    return {"message": "Backend API is live!"}
 
 if __name__ == "__main__":
     import uvicorn
