@@ -2,7 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, sta
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from typing import List
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
 import pdfplumber
 import docx
 import tempfile
@@ -18,10 +19,13 @@ from PIL import Image
 import base64
 from io import BytesIO
 from pdf2image import convert_from_path
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Load environment variables from .env file
 load_dotenv()
-
 
 main_app = FastAPI()
 app = FastAPI()
@@ -46,11 +50,20 @@ mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 db = mongo_client["resume_screening"]
 mis_collection = db["mis"]
 recruiters_collection = db["recruiters"]
+reset_tokens_collection = db["reset_tokens"]  # New collection for reset tokens
 
 # JWT setup
 SECRET_KEY = os.getenv("JWT_SECRET", "supersecretkey")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
+RESET_TOKEN_EXPIRE_MINUTES = 30  # 30 minutes for reset tokens
+
+# Email configuration
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")  # Your email
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Your app password
+FROM_EMAIL = os.getenv("FROM_EMAIL", EMAIL_USERNAME)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -58,6 +71,68 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 # Make sure to set OPENAI_API_KEY in your .env file
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Pydantic models for request/response
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class RecruiterRegistration(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+
+# --- Email Helper Functions ---
+async def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
+    """Send email using SMTP"""
+    try:
+        if not EMAIL_USERNAME or not EMAIL_PASSWORD:
+            raise HTTPException(
+                status_code=500, 
+                detail="Email configuration not set up properly"
+            )
+        
+        msg = MIMEMultipart()
+        msg['From'] = FROM_EMAIL
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        
+        msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(FROM_EMAIL, to_email, text)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        return False
+
+def generate_reset_token():
+    """Generate a secure random token for password reset"""
+    return secrets.token_urlsafe(32)
+
+def create_reset_token(email: str):
+    """Create a JWT token for password reset"""
+    expire = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {"email": email, "exp": expire, "type": "reset"}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_reset_token(token: str):
+    """Verify and decode reset token"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "reset":
+            return None
+        return payload.get("email")
+    except jwt.PyJWTError:
+        return None
 
 # --- Recruiter Auth Helpers ---
 def verify_password(plain, hashed):
@@ -68,6 +143,9 @@ def get_password_hash(password):
 
 async def get_recruiter(username: str):
     return await recruiters_collection.find_one({"username": username})
+
+async def get_recruiter_by_email(email: str):
+    return await recruiters_collection.find_one({"email": email})
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -95,13 +173,44 @@ async def get_current_recruiter(token: str = Depends(oauth2_scheme)):
 
 # --- Auth Endpoints ---
 @main_app.post("/register")
-async def register(form: OAuth2PasswordRequestForm = Depends()):
+async def register(recruiter_data: RecruiterRegistration):
+    username = recruiter_data.username.strip()
+    email = recruiter_data.email.strip().lower()
+    
+    # Check if username already exists
+    existing_username = await recruiters_collection.find_one({"username": username})
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    # Check if email already exists
+    existing_email = await recruiters_collection.find_one({"email": email})
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed = get_password_hash(recruiter_data.password)
+    
+    await recruiters_collection.insert_one({
+        "username": username,
+        "email": email,
+        "hashed_password": hashed,
+        "created_at": datetime.utcnow()
+    })
+    
+    return {"msg": "Recruiter registered successfully"}
+
+@main_app.post("/register-form")
+async def register_form(form: OAuth2PasswordRequestForm = Depends()):
+    """Legacy registration endpoint for form-based registration"""
     username = form.username.strip()
     existing = await recruiters_collection.find_one({"username": username})
     if existing:
         raise HTTPException(status_code=400, detail="Username already registered")
     hashed = get_password_hash(form.password)
-    await recruiters_collection.insert_one({"username": form.username, "hashed_password": hashed})
+    await recruiters_collection.insert_one({
+        "username": form.username, 
+        "hashed_password": hashed,
+        "created_at": datetime.utcnow()
+    })
     return {"msg": "Recruiter registered"}
 
 @main_app.post("/login")
@@ -111,9 +220,137 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     if not recruiter or not verify_password(form.password, recruiter["hashed_password"]):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token = create_access_token(data={"sub": recruiter["username"]})
-    return {"access_token": access_token, "token_type": "bearer", "recruiter_name": recruiter["username"]}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer", 
+        "recruiter_name": recruiter["username"]
+    }
 
+@main_app.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Send password reset email"""
+    email = request.email.strip().lower()
+    
+    # Check if email exists
+    recruiter = await get_recruiter_by_email(email)
+    if not recruiter:
+        # Don't reveal if email exists or not for security
+        return {"msg": "If the email exists, you will receive a password reset link"}
+    
+    # Generate reset token
+    reset_token = create_reset_token(email)
+    
+    # Store token in database with expiration
+    await reset_tokens_collection.insert_one({
+        "email": email,
+        "token": reset_token,
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES),
+        "used": False
+    })
+    
+    # Create reset link (adjust the frontend URL as needed)
+    reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
+    
+    # Email content
+    subject = "Password Reset Request - Resume Screening App"
+    body = f"""
+    <html>
+        <body>
+            <h2>Password Reset Request</h2>
+            <p>Hello {recruiter['username']},</p>
+            <p>You have requested to reset your password for the Resume Screening App.</p>
+            <p>Click the link below to reset your password:</p>
+            <p><a href="{reset_link}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+            <p>This link will expire in {RESET_TOKEN_EXPIRE_MINUTES} minutes.</p>
+            <p>If you didn't request this reset, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>Resume Screening App Team</p>
+        </body>
+    </html>
+    """
+    
+    # Send email
+    email_sent = await send_email(email, subject, body, is_html=True)
+    
+    if not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send reset email")
+    
+    return {"msg": "If the email exists, you will receive a password reset link"}
 
+@main_app.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    """Reset password using token"""
+    
+    # Verify token
+    email = verify_reset_token(request.token)
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check if token exists in database and is not used
+    token_doc = await reset_tokens_collection.find_one({
+        "token": request.token,
+        "used": False,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Get recruiter
+    recruiter = await get_recruiter_by_email(email)
+    if not recruiter:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    hashed_password = get_password_hash(request.new_password)
+    
+    await recruiters_collection.update_one(
+        {"email": email},
+        {
+            "$set": {
+                "hashed_password": hashed_password,
+                "password_updated_at": datetime.utcnow()
+            }
+        }
+    )
+    
+    # Mark token as used
+    await reset_tokens_collection.update_one(
+        {"token": request.token},
+        {"$set": {"used": True, "used_at": datetime.utcnow()}}
+    )
+    
+    return {"msg": "Password reset successfully"}
+
+@main_app.get("/verify-reset-token/{token}")
+async def verify_reset_token_endpoint(token: str):
+    """Verify if reset token is valid"""
+    
+    email = verify_reset_token(token)
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check if token exists in database and is not used
+    token_doc = await reset_tokens_collection.find_one({
+        "token": token,
+        "used": False,
+        "expires_at": {"$gt": datetime.utcnow()}
+    })
+    
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    return {"valid": True, "email": email}
+
+# Cleanup expired tokens (call this periodically)
+@main_app.delete("/cleanup-expired-tokens")
+async def cleanup_expired_tokens():
+    """Remove expired reset tokens from database"""
+    result = await reset_tokens_collection.delete_many({
+        "expires_at": {"$lt": datetime.utcnow()}
+    })
+    return {"deleted_count": result.deleted_count}
 
 def extract_text_from_pdf(filepath):
     with pdfplumber.open(filepath) as pdf:

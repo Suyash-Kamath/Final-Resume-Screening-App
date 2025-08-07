@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
 function extractDecision(result) {
@@ -21,12 +21,17 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 function App() {
   // Auth state
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot-password', 'reset-password'
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [recruiterName, setRecruiterName] = useState(localStorage.getItem('recruiterName') || '');
   const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
   // App state
@@ -39,30 +44,131 @@ function App() {
   const [mis, setMis] = useState([]);
   const [misLoading, setMisLoading] = useState(false);
 
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+
+
+
+  // Check for reset token in URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+      setResetToken(tokenFromUrl);
+      setAuthMode('reset-password');
+      // Verify token validity
+      verifyResetToken(tokenFromUrl);
+    }
+  }, []);
+
+  // Verify reset token
+  const verifyResetToken = async (token) => {
+    try {
+      const res = await fetch(`${API_URL}/verify-reset-token/${token}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setAuthError('Invalid or expired reset link. Please request a new one.');
+        setAuthMode('forgot-password');
+      } else {
+        setEmail(data.email);
+        setAuthSuccess('Reset link verified. Please enter your new password.');
+      }
+    } catch (err) {
+      setAuthError('Invalid or expired reset link. Please request a new one.');
+      setAuthMode('forgot-password');
+    }
+  };
+
   // Auth handlers
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
+    setAuthSuccess('');
+
     try {
-      const form = new FormData();
-      form.append('username', username);
-      form.append('password', password);
-      const endpoint = authMode === 'register' ? '/register' : '/login';
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        body: form,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Auth failed');
       if (authMode === 'login') {
+        const form = new FormData();
+        form.append('username', username);
+        form.append('password', password);
+        const res = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+
         setToken(data.access_token);
         setRecruiterName(data.recruiter_name);
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('recruiterName', data.recruiter_name);
-      } else {
+      }
+      else if (authMode === 'register') {
+        const res = await fetch(`${API_URL}/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            email: email,
+            password: password,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Registration failed');
+
         setAuthMode('login');
-        setAuthError('Registration successful! Please login.');
+        setAuthSuccess('Registration successful! Please login with your credentials.');
+        setUsername('');
+        setEmail('');
+        setPassword('');
+      }
+      else if (authMode === 'forgot-password') {
+        const res = await fetch(`${API_URL}/forgot-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to send reset email');
+
+        setAuthSuccess('If the email exists in our system, you will receive a password reset link shortly. Please check your inbox and spam folder.');
+        setEmail('');
+      }
+      else if (authMode === 'reset-password') {
+        if (newPassword !== confirmPassword) {
+          throw new Error('Passwords do not match');
+        }
+        if (newPassword.length < 6) {
+          throw new Error('Password must be at least 6 characters long');
+        }
+
+        const res = await fetch(`${API_URL}/reset-password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            token: resetToken,
+            new_password: newPassword,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to reset password');
+
+        setAuthSuccess('Password reset successful! You can now login with your new password.');
+        setAuthMode('login');
+        setNewPassword('');
+        setConfirmPassword('');
+        setResetToken('');
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch (err) {
       setAuthError(err.message);
@@ -77,6 +183,16 @@ function App() {
     localStorage.removeItem('recruiterName');
     setResults([]);
     setMis([]);
+  };
+
+  const resetAuthState = () => {
+    setAuthError('');
+    setAuthSuccess('');
+    setUsername('');
+    setEmail('');
+    setPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
   // Resume upload handlers
@@ -134,6 +250,7 @@ function App() {
     if (val === '4' || val === 4) return 'Sales Support';
     return val;
   };
+
   const levelLabel = (val) => {
     if (!val) return '-';
     if (val === '1' || val === 1) return 'Fresher';
@@ -141,42 +258,237 @@ function App() {
     return val;
   };
 
-  return (
-    <>
-      {!token ? (
-        <div className="login-container">
-
-          <h1>ProHire</h1>
-          <p className='tagline'>
-            Apply karo chahe kahin se, shortlisting hoga yahin se.
-          </p>
-          <div className="auth-box">
-            <h2>{authMode === 'login' ? 'Recruiter Login' : 'Recruiter Registration'}</h2>
-            <form onSubmit={handleAuth} style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+  const renderAuthForm = () => {
+    switch (authMode) {
+      case 'login':
+        return (
+          <>
+            <h2>Recruiter Login</h2>
+            <form onSubmit={handleAuth} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
                 type="text"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Recruiter Username"
                 required
-                style={{ marginBottom: 8 }}
               />
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-                style={{ marginBottom: 8 }}
-              />
+              <div className="password-wrapper">
+                <input
+                  type={showLoginPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                />
+                <span
+                  className="password-toggle"
+                  onClick={() => setShowLoginPassword(prev => !prev)}
+                  title={showLoginPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showLoginPassword ? "🙈" : "👁️"}
+                </span>
+              </div>
+
               <button type="submit" disabled={authLoading}>
-                {authLoading ? (authMode === 'login' ? 'Logging in...' : 'Registering...') : (authMode === 'login' ? 'Login' : 'Register')}
+                {authLoading ? 'Logging in...' : 'Login'}
               </button>
             </form>
-            <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} style={{ fontSize: 12 }}>
-              {authMode === 'login' ? 'Need an account? Register' : 'Already have an account? Login'}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={() => {
+                  setAuthMode('register');
+                  resetAuthState();
+                }}
+                style={{ fontSize: 12 }}
+              >
+                Need an account? Register
+              </button>
+              <button
+                onClick={() => {
+                  setAuthMode('forgot-password');
+                  resetAuthState();
+                }}
+                style={{ fontSize: 12, color: '#007bff', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          </>
+        );
+
+      case 'register':
+        return (
+          <>
+            <h2>Recruiter Registration</h2>
+            <form onSubmit={handleAuth} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Recruiter Username"
+                required
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email Address"
+                required
+              />
+              <div className="password-wrapper">
+                <input
+                  type={showRegisterPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  minLength={6}
+                />
+                <span
+                  className="password-toggle"
+                  onClick={() => setShowRegisterPassword(prev => !prev)}
+                  title={showRegisterPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showRegisterPassword ? "🙈" : "👁️"}
+                </span>
+              </div>
+
+
+              <button type="submit" disabled={authLoading}>
+                {authLoading ? 'Registering...' : 'Register'}
+              </button>
+            </form>
+            <button
+              onClick={() => {
+                setAuthMode('login');
+                resetAuthState();
+              }}
+              style={{ fontSize: 12 }}
+            >
+              Already have an account? Login
             </button>
-            {authError && <div style={{ color: authError.includes('successful') ? 'green' : 'red', marginTop: 8 }}>{authError}</div>}
+          </>
+        );
+
+      case 'forgot-password':
+        return (
+          <>
+            <h2>Forgot Password</h2>
+            <p style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
+              Enter your email address and we'll send you a link to reset your password.
+            </p>
+            <form onSubmit={handleAuth} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Email Address"
+                required
+              />
+              <button type="submit" disabled={authLoading}>
+                {authLoading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
+            <button
+              onClick={() => {
+                setAuthMode('login');
+                resetAuthState();
+              }}
+              style={{ fontSize: 12 }}
+            >
+              Back to Login
+            </button>
+          </>
+        );
+
+      case 'reset-password':
+        return (
+          <>
+            <h2>Reset Password</h2>
+            <p style={{ fontSize: 14, color: '#666', marginBottom: 16 }}>
+              Enter your new password for: <strong>{email}</strong>
+            </p>
+            <form onSubmit={handleAuth} style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="password-wrapper">
+                <input
+                  type={showResetPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="New Password"
+                  required
+                  minLength={6}
+                />
+                <span
+                  className="password-toggle"
+                  onClick={() => setShowResetPassword(prev => !prev)}
+                  title={showResetPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showResetPassword ? "🙈" : "👁️"}
+                </span>
+              </div>
+
+              <div className="password-wrapper">
+                <input
+                  type={showResetPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm New Password"
+                  required
+                  minLength={6}
+                />
+                <span
+                  className="password-toggle"
+                  onClick={() => setShowResetPassword(prev => !prev)}
+                  title={showResetPassword ? "Hide Password" : "Show Password"}
+                >
+                  {showResetPassword ? "🙈" : "👁️"}
+                </span>
+              </div>
+
+
+              <button type="submit" disabled={authLoading}>
+                {authLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </form>
+            <button
+              onClick={() => {
+                setAuthMode('login');
+                resetAuthState();
+                setResetToken('');
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }}
+              style={{ fontSize: 12 }}
+            >
+              Back to Login
+            </button>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <>
+      {!token ? (
+        <div className="login-container">
+          <h1>ProHire</h1>
+          <p className='tagline'>
+            Apply karo chahe kahin se, shortlisting hoga yahin se.
+          </p>
+          <div className="auth-box">
+            {renderAuthForm()}
+            {authError && (
+              <div style={{ color: 'red', marginTop: 16, padding: 12, backgroundColor: '#ffeaea', border: '1px solid #ffcdd2', borderRadius: 4 }}>
+                {authError}
+              </div>
+            )}
+            {authSuccess && (
+              <div style={{ color: 'green', marginTop: 16, padding: 12, backgroundColor: '#eafaf1', border: '1px solid #c8e6c9', borderRadius: 4 }}>
+                {authSuccess}
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -358,6 +670,5 @@ function App() {
     </>
   );
 }
-
 
 export default App;
