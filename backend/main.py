@@ -250,7 +250,7 @@ async def forgot_password(request: ForgotPasswordRequest):
     })
     
     # Create reset link (adjust the frontend URL as needed)
-    reset_link = f"http://localhost:5173/reset-password?token={reset_token}"
+    reset_link = f"https://final-resume-screening-app.vercel.app/reset-password?token={reset_token}"
     
     # Email content
     subject = "Password Reset Request - Resume Screening App"
