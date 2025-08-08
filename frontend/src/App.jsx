@@ -1,21 +1,28 @@
 import { useState, useEffect } from 'react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa'; // for ✅ and ❌
 import './App.css';
 
 function extractDecision(result) {
   if (result.decision && result.decision !== '-') {
-    if (result.decision.includes('Shortlist')) return 'Shortlisted';
-    if (result.decision.includes('Reject')) return 'Rejected';
+    if (result.decision.includes('Shortlist'))
+      return <span><FaCheckCircle style={{ color: 'green', marginRight: 4 }} /> Shortlisted</span>;
+    if (result.decision.includes('Reject'))
+      return <span><FaTimesCircle style={{ color: 'red', marginRight: 4 }} /> Rejected</span>;
     return result.decision;
   }
   if (result.result_text) {
-    const match = result.result_text.match(/Decision:\s*(✅ Shortlist|❌ Reject)/);
+    const match = result.result_text.match(/Decision:\s*(Shortlist|Reject)/);
     if (match) {
-      return match[1].includes('Shortlist') ? 'Shortlisted' : 'Rejected';
+      return match[1] === 'Shortlist'
+        ? <span><FaCheckCircle style={{ color: 'green', marginRight: 4 }} /> Shortlisted</span>
+        : <span><FaTimesCircle style={{ color: 'red', marginRight: 4 }} /> Rejected</span>;
     }
   }
   if (result.error) return 'Error';
   return '-';
 }
+
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -285,8 +292,9 @@ function App() {
                   onClick={() => setShowLoginPassword(prev => !prev)}
                   title={showLoginPassword ? "Hide Password" : "Show Password"}
                 >
-                  {showLoginPassword ? "🙈" : "👁️"}
+                  {showLoginPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
+
               </div>
 
               <button type="submit" disabled={authLoading}>
@@ -349,8 +357,9 @@ function App() {
                   onClick={() => setShowRegisterPassword(prev => !prev)}
                   title={showRegisterPassword ? "Hide Password" : "Show Password"}
                 >
-                  {showRegisterPassword ? "🙈" : "👁️"}
+                  {showRegisterPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
+
               </div>
 
 
@@ -423,8 +432,9 @@ function App() {
                   onClick={() => setShowResetPassword(prev => !prev)}
                   title={showResetPassword ? "Hide Password" : "Show Password"}
                 >
-                  {showResetPassword ? "🙈" : "👁️"}
+                  {showResetPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
+
               </div>
 
               <div className="password-wrapper">
@@ -436,12 +446,12 @@ function App() {
                   required
                   minLength={6}
                 />
-                <span
+                 <span
                   className="password-toggle"
                   onClick={() => setShowResetPassword(prev => !prev)}
                   title={showResetPassword ? "Hide Password" : "Show Password"}
                 >
-                  {showResetPassword ? "🙈" : "👁️"}
+                  {showResetPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
               </div>
 
