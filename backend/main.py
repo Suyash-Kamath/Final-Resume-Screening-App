@@ -255,19 +255,19 @@ async def forgot_password(request: ForgotPasswordRequest):
 
     
     # Email content
-    subject = "Password Reset Request - Resume Screening App"
+    subject = "Password Reset Request - Prohire"
     body = f"""
     <html>
         <body>
             <h2>Password Reset Request</h2>
             <p>Hello {recruiter['username']},</p>
-            <p>You have requested to reset your password for the Resume Screening App.</p>
+            <p>You have requested to reset your password for Prohire</p>
             <p>Click the link below to reset your password:</p>
             <p><a href="{reset_link}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
             <p>This link will expire in {RESET_TOKEN_EXPIRE_MINUTES} minutes.</p>
             <p>If you didn't request this reset, please ignore this email.</p>
             <br>
-            <p>Best regards,<br>Resume Screening App Team</p>
+            <p>Best regards,<br>ProHire Team</p>
         </body>
     </html>
     """
