@@ -817,6 +817,17 @@ def get_hiring_type_label(hiring_type):
 def get_level_label(level):
     return {"1": "Fresher", "2": "Experienced"}.get(level, level)
 
+def format_date_with_day(dt):
+    """Format date as '25th August 2025, Monday'"""
+    day = dt.day
+    if 10 <= day % 100 <= 20:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    
+    formatted_date = dt.strftime(f"%d{suffix} %B %Y, %A")
+    return formatted_date
+
 @main_app.post("/analyze-resumes/")
 async def analyze_resumes(
     job_description: str = Form(...),
@@ -829,8 +840,10 @@ async def analyze_resumes(
     shortlisted = 0
     rejected = 0
     history = []
+    current_date = datetime.utcnow()
     hiring_type_label = get_hiring_type_label(hiring_type)
     level_label = get_level_label(level)
+    
     for file in files:
         filename = file.filename or "Unknown"
         suffix = os.path.splitext(filename)[1].lower()
@@ -863,9 +876,11 @@ async def analyze_resumes(
                 "level": level_label,
                 "match_percent": None,
                 "decision": "Error",
-                "details": error_msg
+                "details": error_msg,
+                "upload_date": format_date_with_day(current_date)
             })
             continue
+        
         analysis = analyze_resume(job_description, resume_text, hiring_type, level)
         if isinstance(analysis, dict):
             analysis["filename"] = filename
@@ -889,7 +904,8 @@ async def analyze_resumes(
                 "level": level_label,
                 "match_percent": analysis.get("match_percent"),
                 "decision": decision_label,
-                "details": analysis.get("result_text") or analysis.get("error", "")
+                "details": analysis.get("result_text") or analysis.get("error", ""),
+                "upload_date": format_date_with_day(current_date)
             })
         else:
             results.append({"filename": filename, "error": analysis})
@@ -899,16 +915,18 @@ async def analyze_resumes(
                 "level": level_label,
                 "match_percent": None,
                 "decision": "Error",
-                "details": analysis
+                "details": analysis,
+                "upload_date": format_date_with_day(current_date)
             })
         os.unlink(tmp_path)
+    
     # Save MIS record with history
     await mis_collection.insert_one({
         "recruiter_name": recruiter["username"],
         "total_resumes": len(files),
         "shortlisted": shortlisted,
         "rejected": rejected,
-        "timestamp": datetime.utcnow(),
+        "timestamp": current_date,
         "history": history
     })
     return JSONResponse(content={"results": results})
@@ -928,10 +946,30 @@ async def mis_summary():
         },
         {"$sort": {"_id": 1}}
     ]
+    
     summary = []
     async for row in mis_collection.aggregate(pipeline):
         # Flatten the list of lists in history
         flat_history = [item for sublist in row["history"] for item in sublist]
+        
+        # Calculate daily counts for this recruiter
+        daily_counts = {}
+        for item in flat_history:
+            upload_date = item.get("upload_date", "")
+            if upload_date:
+                # Extract just the date part (without day name) for counting
+                date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+                daily_counts[date_part] = daily_counts.get(date_part, 0) + 1
+        
+        # Add daily count to each history item
+        for item in flat_history:
+            upload_date = item.get("upload_date", "")
+            if upload_date:
+                date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+                item["counts_per_day"] = daily_counts.get(date_part, 0)
+            else:
+                item["counts_per_day"] = 0
+        
         summary.append({
             "recruiter_name": row["_id"],
             "uploads": row["uploads"],

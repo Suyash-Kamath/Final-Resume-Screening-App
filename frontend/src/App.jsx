@@ -633,6 +633,8 @@ function App() {
                                   <th>Level</th>
                                   <th>Match %</th>
                                   <th>Decision</th>
+                                  <th>Upload Date</th> {/* New column */}
+                                  <th>Counts/Day</th> {/* New column */}
                                   <th>Details</th>
                                 </tr>
                               </thead>
@@ -644,10 +646,12 @@ function App() {
                                     <td>{levelLabel(h.level)}</td>
                                     <td>{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
                                     <td>{h.decision || '-'}</td>
+                                    <td>{h.upload_date || '-'}</td>
+                                    <td>{h.counts_per_day || '-'}</td>
                                     <td>
                                       <details>
                                         <summary>Show</summary>
-                                        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>{h.details || '-'}</pre>
+                                        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>{(h.details || '').replace(/\*\*(.*?)\*\*/g, '$1')}</pre>
                                       </details>
                                     </td>
                                   </tr>
@@ -656,9 +660,10 @@ function App() {
                             </table>
                           </details>
                         ) : (
-                          <span>-</span>
+                          'No history'
                         )}
                       </td>
+
                     </tr>
                   ))}
                 </tbody>
