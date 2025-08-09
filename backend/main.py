@@ -3,9 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
-from typing import List, Optional
+from typing import List
 import pdfplumber
-import docx
 import tempfile
 import os
 import re
@@ -15,7 +14,6 @@ import motor.motor_asyncio
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 import jwt
-from PIL import Image
 import base64
 from io import BytesIO
 from pdf2image import convert_from_path
@@ -405,7 +403,7 @@ def extract_text_from_pdf(filepath):
         return f"❌ Error during OCR fallback: {e}"
 
 
-from docx import Document
+
 
 def extract_text_from_docx(filepath: str) -> str:
     """
@@ -804,8 +802,6 @@ Reason (if Rejected): ...
             "total_tokens": getattr(usage, 'total_tokens', None)
         } if usage else None
     }
-
-import re
 
 def extract_candidate_name(resume_text, filename):
     # This function is now unused, but kept for reference
