@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa'; // for ✅ and ❌
+import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
 import './App.css';
 
 function extractDecision(result) {
@@ -23,12 +23,298 @@ function extractDecision(result) {
   return '-';
 }
 
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+// Resume Screening Component
+function ResumeScreening({ token }) {
+  const [jd, setJd] = useState('');
+  const [files, setFiles] = useState([]);
+  const [results, setResults] = useState([]);
+  const [hiringType, setHiringType] = useState('1');
+  const [level, setLevel] = useState('1');
+  const [loading, setLoading] = useState(false);
+
+  const handleFileChange = (e) => {
+    setFiles(Array.from(e.target.files));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData();
+    formData.append('job_description', jd);
+    formData.append('hiring_type', hiringType);
+    formData.append('level', level);
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+    try {
+      const response = await fetch(`${API_URL}/analyze-resumes/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setResults(data.results || []);
+      setFiles([]);
+    } catch (err) {
+      setResults([]);
+      alert('Error connecting to backend.');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="page-content">
+      <h2 className="page-title">Resume Screening</h2>
+      <div className="columns">
+        <div className="left-column">
+          <h3>Job Description</h3>
+          <div style={{ marginBottom: '1rem' }} className="field-row">
+            <label>
+              Hiring Type:
+              <select value={hiringType} onChange={e => setHiringType(e.target.value)} style={{ marginLeft: 8 }}>
+                <option value="1">Sales</option>
+                <option value="2">IT</option>
+                <option value="3">Non-Sales</option>
+                <option value="4">Sales Support</option>
+              </select>
+            </label>
+            <label style={{ marginLeft: 16 }}>
+              Level:
+              <select value={level} onChange={e => setLevel(e.target.value)} style={{ marginLeft: 8 }}>
+                <option value="1">Fresher</option>
+                <option value="2">Experienced</option>
+              </select>
+            </label>
+          </div>
+          <textarea
+            value={jd}
+            onChange={(e) => setJd(e.target.value)}
+            placeholder="Paste Job Description here..."
+            rows={20}
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div className="right-column">
+          <h3>Upload Resumes</h3>
+          <div className="upload-row">
+            <label className="custom-file-upload">
+              <input
+                type="file"
+                accept=".pdf,.docx,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
+                multiple
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+              />
+              Choose Files
+            </label>
+            <button onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Evaluating...' : 'Evaluate'}
+            </button>
+            {files.length > 0 && (
+              <div className="file-list">
+                {files.map((file, idx) => (
+                  <span className="file-item" key={idx}>
+                    {file.name}
+                    <button
+                      type="button"
+                      className="remove-file"
+                      onClick={() => setFiles(files.filter((_, i) => i !== idx))}
+                      title="Remove"
+                    >
+                      &times;
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: '2rem' }}>
+            {results.length > 0 && (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Resume</th>
+                    <th>Match %</th>
+                    <th>Decision</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((res, idx) => (
+                    <tr key={idx}>
+                      <td>{res.filename}</td>
+                      <td>{res.match_percent !== undefined ? res.match_percent + '%' : '-'}</td>
+                      <td>{extractDecision(res)}</td>
+                      <td>
+                        <details>
+                          <summary>Show</summary>
+                          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
+                            {(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, '$1')}
+                          </pre>
+                        </details>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// MIS Summary Component
+function MISSummary() {
+  const [mis, setMis] = useState([]);
+  const [misLoading, setMisLoading] = useState(false);
+
+  const fetchMIS = async () => {
+    setMisLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/mis-summary`);
+      const data = await response.json();
+      setMis(data.summary || []);
+    } catch (err) {
+      setMis([]);
+      alert('Error fetching MIS summary.');
+    }
+    setMisLoading(false);
+  };
+
+  const hiringTypeLabel = (val) => {
+    if (!val) return '-';
+    if (val === '1' || val === 1) return 'Sales';
+    if (val === '2' || val === 2) return 'IT';
+    if (val === '3' || val === 3) return 'Non-Sales';
+    if (val === '4' || val === 4) return 'Sales Support';
+    return val;
+  };
+
+  const levelLabel = (val) => {
+    if (!val) return '-';
+    if (val === '1' || val === 1) return 'Fresher';
+    if (val === '2' || val === 2) return 'Experienced';
+    return val;
+  };
+
+  return (
+    <div className="page-content">
+      <div className="mis-summary-section">
+        <h2 className="page-title">MIS Summary</h2>
+        <button onClick={fetchMIS} disabled={misLoading} style={{ marginBottom: '1rem' }}>
+          {misLoading ? 'Loading...' : 'Show MIS Summary'}
+        </button>
+        {mis.length > 0 && (
+          <table>
+            <thead>
+              <tr>
+                <th>Recruiter Name</th>
+                <th>Uploads</th>
+                <th>Total Resumes</th>
+                <th>Shortlisted</th>
+                <th>Rejected</th>
+                <th>History</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mis.map((row, idx) => (
+                <tr key={idx}>
+                  <td>{row.recruiter_name}</td>
+                  <td>{row.uploads}</td>
+                  <td>{row.resumes}</td>
+                  <td>{row.shortlisted}</td>
+                  <td>{row.rejected}</td>
+                  <td>
+                    {row.history && row.history.length > 0 ? (
+                      <details>
+                        <summary>Show</summary>
+                        <table style={{ fontSize: 12, marginTop: 8 }}>
+                          <thead>
+                            <tr>
+                              <th>Resume Name</th>
+                              <th>Hiring Type</th>
+                              <th>Level</th>
+                              <th>Match %</th>
+                              <th>Decision</th>
+                              <th>Upload Date</th>
+                              <th>Counts/Day</th>
+                              <th>Details</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {row.history.map((h, hidx) => (
+                              <tr key={hidx}>
+                                <td>{h.resume_name || 'Unknown'}</td>
+                                <td>{hiringTypeLabel(h.hiring_type)}</td>
+                                <td>{levelLabel(h.level)}</td>
+                                <td>{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
+                                <td>{h.decision || '-'}</td>
+                                <td>{h.upload_date || '-'}</td>
+                                <td>{h.counts_per_day || '-'}</td>
+                                <td>
+                                  <details>
+                                    <summary>Show</summary>
+                                    <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>
+                                      {(h.details || '').replace(/\*\*(.*?)\*\*/g, '$1')}
+                                    </pre>
+                                  </details>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </details>
+                    ) : (
+                      'No history'
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Dashboard Component (Navigation)
+function Dashboard({ currentPage, setCurrentPage, recruiterName, handleLogout }) {
+  return (
+    <div className="dashboard-header">
+      <div className="navigation-bar">
+        <div className="nav-links">
+          <button
+            className={`nav-link ${currentPage === 'resume-screening' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('resume-screening')}
+          >
+            Resume Screening
+          </button>
+          <button
+            className={`nav-link ${currentPage === 'mis-summary' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('mis-summary')}
+          >
+            MIS Summary
+          </button>
+        </div>
+        <div className="user-info">
+          <span>Logged in as <b>{recruiterName}</b></span>
+          <button onClick={handleLogout} className="logout-btn">Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   // Auth state
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot-password', 'reset-password'
+  const [authMode, setAuthMode] = useState('login');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,21 +327,13 @@ function App() {
   const [authSuccess, setAuthSuccess] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
 
-  // App state
-  const [jd, setJd] = useState('');
-  const [files, setFiles] = useState([]);
-  const [results, setResults] = useState([]);
-  const [hiringType, setHiringType] = useState('1');
-  const [level, setLevel] = useState('1');
-  const [loading, setLoading] = useState(false);
-  const [mis, setMis] = useState([]);
-  const [misLoading, setMisLoading] = useState(false);
+  // Navigation state
+  const [currentPage, setCurrentPage] = useState('resume-screening');
 
+  // Password visibility state
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
-
-
 
   // Check for reset token in URL on component mount
   useEffect(() => {
@@ -64,7 +342,6 @@ function App() {
     if (tokenFromUrl) {
       setResetToken(tokenFromUrl);
       setAuthMode('reset-password');
-      // Verify token validity
       verifyResetToken(tokenFromUrl);
     }
   }, []);
@@ -174,7 +451,6 @@ function App() {
         setNewPassword('');
         setConfirmPassword('');
         setResetToken('');
-        // Clear URL parameters
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch (err) {
@@ -188,8 +464,7 @@ function App() {
     setRecruiterName('');
     localStorage.removeItem('token');
     localStorage.removeItem('recruiterName');
-    setResults([]);
-    setMis([]);
+    setCurrentPage('resume-screening');
   };
 
   const resetAuthState = () => {
@@ -200,69 +475,6 @@ function App() {
     setPassword('');
     setNewPassword('');
     setConfirmPassword('');
-  };
-
-  // Resume upload handlers
-  const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('job_description', jd);
-    formData.append('hiring_type', hiringType);
-    formData.append('level', level);
-    files.forEach((file) => {
-      formData.append('files', file);
-    });
-    try {
-      const response = await fetch(`${API_URL}/analyze-resumes/`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      setResults(data.results || []);
-      setFiles([]);
-    } catch (err) {
-      setResults([]);
-      alert('Error connecting to backend.');
-    }
-    setLoading(false);
-  };
-
-  // MIS summary
-  const fetchMIS = async () => {
-    setMisLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/mis-summary`);
-      const data = await response.json();
-      setMis(data.summary || []);
-    } catch (err) {
-      setMis([]);
-      alert('Error fetching MIS summary.');
-    }
-    setMisLoading(false);
-  };
-
-  const hiringTypeLabel = (val) => {
-    if (!val) return '-';
-    if (val === '1' || val === 1) return 'Sales';
-    if (val === '2' || val === 2) return 'IT';
-    if (val === '3' || val === 3) return 'Non-Sales';
-    if (val === '4' || val === 4) return 'Sales Support';
-    return val;
-  };
-
-  const levelLabel = (val) => {
-    if (!val) return '-';
-    if (val === '1' || val === 1) return 'Fresher';
-    if (val === '2' || val === 2) return 'Experienced';
-    return val;
   };
 
   const renderAuthForm = () => {
@@ -294,9 +506,7 @@ function App() {
                 >
                   {showLoginPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
-
               </div>
-
               <button type="submit" disabled={authLoading}>
                 {authLoading ? 'Logging in...' : 'Login'}
               </button>
@@ -359,10 +569,7 @@ function App() {
                 >
                   {showRegisterPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
-
               </div>
-
-
               <button type="submit" disabled={authLoading}>
                 {authLoading ? 'Registering...' : 'Register'}
               </button>
@@ -434,9 +641,7 @@ function App() {
                 >
                   {showResetPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
-
               </div>
-
               <div className="password-wrapper">
                 <input
                   type={showResetPassword ? "text" : "password"}
@@ -446,7 +651,7 @@ function App() {
                   required
                   minLength={6}
                 />
-                 <span
+                <span
                   className="password-toggle"
                   onClick={() => setShowResetPassword(prev => !prev)}
                   title={showResetPassword ? "Hide Password" : "Show Password"}
@@ -454,8 +659,6 @@ function App() {
                   {showResetPassword ? <FaEyeSlash /> : <FaEye />}
                 </span>
               </div>
-
-
               <button type="submit" disabled={authLoading}>
                 {authLoading ? 'Resetting...' : 'Reset Password'}
               </button>
@@ -476,6 +679,17 @@ function App() {
 
       default:
         return null;
+    }
+  };
+
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case 'resume-screening':
+        return <ResumeScreening token={token} />;
+      case 'mis-summary':
+        return <MISSummary />;
+      default:
+        return <ResumeScreening token={token} />;
     }
   };
 
@@ -507,179 +721,13 @@ function App() {
           <p className='tagline'>
             Apply karo chahe kahin se, shortlisting hoga yahin se.
           </p>
-          <div className="auth-box" style={{ marginBottom: 16 }}>
-            <span>Logged in as <b>{recruiterName}</b></span>
-            <button onClick={handleLogout} style={{ marginLeft: 16 }}>Logout</button>
-          </div>
-          <div className="columns">
-            <div className="left-column">
-              <h2>Job Description</h2>
-              <div style={{ marginBottom: '1rem' }} className="field-row" >
-                <label>
-                  Hiring Type:
-                  <select value={hiringType} onChange={e => setHiringType(e.target.value)} style={{ marginLeft: 8 }}>
-                    <option value="1">Sales</option>
-                    <option value="2">IT</option>
-                    <option value="3">Non-Sales</option>
-                    <option value="4">Sales Support</option>
-                  </select>
-                </label>
-                <label style={{ marginLeft: 16 }}>
-                  Level:
-                  <select value={level} onChange={e => setLevel(e.target.value)} style={{ marginLeft: 8 }}>
-                    <option value="1">Fresher</option>
-                    <option value="2">Experienced</option>
-                  </select>
-                </label>
-              </div>
-              <textarea
-                value={jd}
-                onChange={(e) => setJd(e.target.value)}
-                placeholder="Paste Job Description here..."
-                rows={20}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div className="right-column">
-              <h2>Upload Resumes</h2>
-              <div className="upload-row">
-                <label className="custom-file-upload">
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
-                    multiple
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                  Choose Files
-                </label>
-                <button onClick={handleSubmit} disabled={loading}>
-                  {loading ? 'Evaluating...' : 'Evaluate'}
-                </button>
-                {/* Show selected file names or count */}
-                {files.length > 0 && (
-                  <div className="file-list">
-                    {files.map((file, idx) => (
-                      <span className="file-item" key={idx}>
-                        {file.name}
-                        <button
-                          type="button"
-                          className="remove-file"
-                          onClick={() => setFiles(files.filter((_, i) => i !== idx))}
-                          title="Remove"
-                        >
-                          &times;
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div style={{ marginTop: '2rem' }}>
-                {results.length > 0 && (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Resume</th>
-                        <th>Match %</th>
-                        <th>Decision</th>
-                        <th>Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.map((res, idx) => (
-                        <tr key={idx}>
-                          <td>{res.filename}</td>
-                          <td>{res.match_percent !== undefined ? res.match_percent + '%' : '-'}</td>
-                          <td>{extractDecision(res)}</td>
-                          <td>
-                            <details>
-                              <summary>Show</summary>
-                              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}> {(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, '$1')}</pre>
-                            </details>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
-          <div style={{ marginTop: '3rem' }} className="mis-summary-section">
-            <h2>MIS Summary</h2>
-            <button onClick={fetchMIS} disabled={misLoading} style={{ marginBottom: '1rem' }}>
-              {misLoading ? 'Loading...' : 'Show MIS Summary'}
-            </button>
-            {mis.length > 0 && (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Recruiter Name</th>
-                    <th>Uploads</th>
-                    <th>Total Resumes</th>
-                    <th>Shortlisted</th>
-                    <th>Rejected</th>
-                    <th>History</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mis.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{row.recruiter_name}</td>
-                      <td>{row.uploads}</td>
-                      <td>{row.resumes}</td>
-                      <td>{row.shortlisted}</td>
-                      <td>{row.rejected}</td>
-                      <td>
-                        {row.history && row.history.length > 0 ? (
-                          <details>
-                            <summary>Show</summary>
-                            <table style={{ fontSize: 12, marginTop: 8 }}>
-                              <thead>
-                                <tr>
-                                  <th>Resume Name</th>
-                                  <th>Hiring Type</th>
-                                  <th>Level</th>
-                                  <th>Match %</th>
-                                  <th>Decision</th>
-                                  <th>Upload Date</th> {/* New column */}
-                                  <th>Counts/Day</th> {/* New column */}
-                                  <th>Details</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {row.history.map((h, hidx) => (
-                                  <tr key={hidx}>
-                                    <td>{h.resume_name || 'Unknown'}</td>
-                                    <td>{hiringTypeLabel(h.hiring_type)}</td>
-                                    <td>{levelLabel(h.level)}</td>
-                                    <td>{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
-                                    <td>{h.decision || '-'}</td>
-                                    <td>{h.upload_date || '-'}</td>
-                                    <td>{h.counts_per_day || '-'}</td>
-                                    <td>
-                                      <details>
-                                        <summary>Show</summary>
-                                        <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>{(h.details || '').replace(/\*\*(.*?)\*\*/g, '$1')}</pre>
-                                      </details>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </details>
-                        ) : (
-                          'No history'
-                        )}
-                      </td>
-
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <Dashboard
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            recruiterName={recruiterName}
+            handleLogout={handleLogout}
+          />
+          {renderCurrentPage()}
         </div>
       )}
     </>

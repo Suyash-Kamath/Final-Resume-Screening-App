@@ -188,15 +188,105 @@ body,
   margin-bottom: 1.5rem;
 }
 
-.main-container .auth-box {
-  margin-bottom: 1.5rem;
-  width: auto;
-  max-width: none;
-  flex-direction: row;
+/* DASHBOARD NAVIGATION */
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.navigation-bar {
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #f9faff;
+  border-radius: 12px;
   padding: 1rem 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
 }
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-link {
+  background: none;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  padding: 0.7rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #475569;
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, #2563eb 0%, #4f46e5 100%);
+  border-color: #2563eb;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+}
+
+.nav-link.active:hover {
+  background: linear-gradient(90deg, #1d4ed8 0%, #4338ca 100%);
+  transform: translateY(-1px);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.logout-btn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+/* PAGE CONTENT */
+.page-content {
+  margin-top: 1rem;
+}
+
+.page-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #232946;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Adjust existing h2 styles for component headers */
+.left-column h3,
+.right-column h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1.2rem;
+  color: #232946;
+  text-align: left;
+}
+  
 
 /* COLUMNS LAYOUT */
 .columns {
@@ -518,6 +608,22 @@ table td pre {
     width: 100vw;
   }
 
+  .navigation-bar {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .user-info {
+    justify-content: center;
+    text-align: center;
+  }
+
   .columns {
     flex-direction: column;
     gap: 1.5rem;
@@ -543,6 +649,10 @@ table td pre {
     font-size: 1.8rem;
   }
 
+  .page-title {
+    font-size: 1.5rem;
+  }
+
   .file-list {
     margin-left: 0;
   }
@@ -566,6 +676,21 @@ table td pre {
   .login-container,
   .main-container {
     padding: 1rem 0.5rem;
+  }
+
+  .navigation-bar {
+    padding: 0.75rem;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .nav-link {
+    padding: 0.6rem 1rem;
+    text-align: center;
   }
 
   .left-column,
