@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { AiOutlineClose } from "react-icons/ai";
 import './App.css';
 
 function extractDecision(result) {
@@ -143,7 +144,7 @@ function ResumeScreening({ token }) {
                     onClick={() => removeFile(idx)}
                     title="Remove"
                   >
-                    &times;
+                   <AiOutlineClose size={16} />
                   </button>
                 </span>
               ))}

@@ -431,48 +431,60 @@ button:disabled {
   margin-top: 1rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  max-width: 100%;
+  gap: 0.75rem;
+  align-items: flex-start;
   width: 100%;
 }
 
 .file-item {
-  background: #e0e7ff;
+  background: #f9faff;
   color: #232946;
-  border-radius: 4px;
-  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(60, 72, 100, 0.07);
-  max-width: 200px;
-  min-height: 32px;
+  box-shadow: 0 2px 6px rgba(60, 72, 100, 0.06);
+  border: 1px solid #e0e7ff;
+  max-width: 240px;
+  min-height: 36px;
   word-break: break-all;
   gap: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: #eef2ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(60, 72, 100, 0.08);
+}
+
+.file-item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .remove-file {
-  background: none;
+  background: #fef2f2;
   border: none;
-  color: #e11d48;
-  font-size: 16px;
+  color: #dc2626;
+  font-size: 14px;
   cursor: pointer;
-  padding: 0;
+  padding: 4px;
   border-radius: 50%;
-  transition: background 0.15s ease-in-out;
+  transition: background 0.15s ease-in-out, transform 0.1s;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 20px;
-  width: 20px;
-  line-height: 1;
   flex-shrink: 0;
 }
 
 .remove-file:hover {
-  background: #fdecef;
+  background: #fee2e2;
+  transform: scale(1.1);
 }
 
 /* TABLES */
