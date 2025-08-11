@@ -27,7 +27,7 @@ body,
   flex-direction: column;
   align-items: center;
   padding: 2.5rem 2rem;
-  margin: 0 auto;
+  margin: 1rem auto;
   transition: transform 0.2s ease-in-out;
 }
 
@@ -286,7 +286,6 @@ body,
   color: #232946;
   text-align: left;
 }
-  
 
 /* COLUMNS LAYOUT */
 .columns {
@@ -323,13 +322,14 @@ body,
   gap: 1.2rem;
   align-items: flex-end;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
 }
 
 .field-row label {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  flex: 1 1 0;
+  flex: 1 1 120px;
   min-width: 120px;
   font-size: 1.1rem;
   gap: 0.3rem;
@@ -590,6 +590,24 @@ table td pre {
 }
 
 /* RESPONSIVE DESIGN */
+/* Large tablets and small desktops */
+@media (max-width: 1200px) {
+  .main-container {
+    max-width: 95vw;
+    padding: 2rem;
+  }
+  
+  .columns {
+    gap: 1.5rem;
+  }
+  
+  .left-column,
+  .right-column {
+    min-width: 280px;
+  }
+}
+
+/* Tablets */
 @media (max-width: 900px) {
   body,
   #root {
@@ -617,11 +635,19 @@ table td pre {
   .nav-links {
     width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .nav-link {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
   }
 
   .user-info {
     justify-content: center;
     text-align: center;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   .columns {
@@ -636,13 +662,11 @@ table td pre {
   }
 
   .field-row {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: stretch;
+    gap: 0.8rem;
   }
 
   .field-row label {
-    min-width: unset;
+    min-width: 100px;
   }
 
   h1 {
@@ -658,7 +682,7 @@ table td pre {
   }
 
   .file-item {
-    max-width: 150px;
+    max-width: 180px;
     font-size: 0.85rem;
   }
 
@@ -670,12 +694,37 @@ table td pre {
   table td {
     padding: 0.5rem;
   }
+  
+  table td pre {
+    max-width: 300px;
+    font-size: 0.75rem;
+  }
 }
 
+/* Small tablets and large phones */
 @media (max-width: 600px) {
   .login-container,
   .main-container {
     padding: 1rem 0.5rem;
+  }
+  
+  .login-container {
+    margin: 0.5rem;
+    width: calc(100vw - 1rem);
+    max-width: calc(100vw - 1rem);
+  }
+
+  .auth-box {
+    padding: 1.5rem 1rem;
+  }
+  
+  .auth-box input,
+  .password-wrapper {
+    max-width: 100%;
+  }
+  
+  .auth-box form button[type="submit"] {
+    max-width: 100%;
   }
 
   .navigation-bar {
@@ -698,20 +747,149 @@ table td pre {
     padding: 1rem 0.75rem;
   }
 
-  .upload-row {
+  .field-row {
     flex-direction: column;
+    gap: 0.5rem;
     align-items: stretch;
   }
 
+  .field-row label {
+    min-width: unset;
+  }
+
+  .upload-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+  
+  .custom-file-upload,
+  button:not(.auth-box button):not(.remove-file):not(.password-toggle) {
+    width: 100%;
+    padding: 0.7rem 1rem;
+  }
+
   .file-item {
-    max-width: 120px;
+    max-width: 150px;
     font-size: 0.8rem;
     padding: 0.3rem 0.5rem;
   }
 
+  table {
+    font-size: 0.75rem;
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+  
+  table thead,
+  table tbody,
+  table tr,
+  table th,
+  table td {
+    display: block;
+  }
+  
+  table thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  
+  table tr {
+    border: 1px solid #e5e7eb;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #fff;
+    display: block;
+    white-space: normal;
+  }
+  
+  table td {
+    border: none;
+    border-bottom: 1px solid #eee;
+    position: relative;
+    padding-left: 30% !important;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-align: left !important;
+    white-space: normal;
+    word-wrap: break-word;
+  }
+  
+  table td:before {
+    content: attr(data-label) ": ";
+    position: absolute;
+    left: 6px;
+    width: 25%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: bold;
+    color: #666;
+  }
+
   table td pre {
     max-width: 200px;
+    font-size: 0.7rem;
+    padding: 0.5rem;
+  }
+  
+  /* Add data-labels for mobile table headers */
+  .mis-summary-section table table {
+    font-size: 0.7rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .login-container h1 {
+    font-size: 1.8rem;
+  }
+  
+  .main-container h1 {
+    font-size: 1.8rem;
+  }
+  
+  .tagline {
+    font-size: 0.85rem;
+  }
+  
+  .page-title {
+    font-size: 1.3rem;
+  }
+  
+  .auth-box {
+    padding: 1rem 0.75rem;
+  }
+  
+  .left-column,
+  .right-column {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .left-column h3,
+  .right-column h3 {
+    font-size: 1.1rem;
+  }
+  
+  .field-row label {
+    font-size: 1rem;
+  }
+  
+  .file-item {
+    max-width: 120px;
     font-size: 0.75rem;
+  }
+  
+  table td {
+    padding-left: 35% !important;
+    font-size: 0.7rem;
+  }
+  
+  table td:before {
+    width: 30%;
+    font-size: 0.7rem;
   }
 }
 

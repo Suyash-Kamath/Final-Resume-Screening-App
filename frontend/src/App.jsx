@@ -38,8 +38,21 @@ function ResumeScreening({ token }) {
     setFiles(Array.from(e.target.files));
   };
 
+  const removeFile = (index) => {
+    setFiles(files.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!jd.trim()) {
+      alert('Please enter a job description');
+      return;
+    }
+    if (files.length === 0) {
+      alert('Please select at least one resume file');
+      return;
+    }
+    
     setLoading(true);
     const formData = new FormData();
     formData.append('job_description', jd);
@@ -48,6 +61,7 @@ function ResumeScreening({ token }) {
     files.forEach((file) => {
       formData.append('files', file);
     });
+    
     try {
       const response = await fetch(`${API_URL}/analyze-resumes/`, {
         method: 'POST',
@@ -57,11 +71,14 @@ function ResumeScreening({ token }) {
         },
       });
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Analysis failed');
+      }
       setResults(data.results || []);
       setFiles([]);
     } catch (err) {
       setResults([]);
-      alert('Error connecting to backend.');
+      alert(`Error: ${err.message}`);
     }
     setLoading(false);
   };
@@ -75,16 +92,16 @@ function ResumeScreening({ token }) {
           <div style={{ marginBottom: '1rem' }} className="field-row">
             <label>
               Hiring Type:
-              <select value={hiringType} onChange={e => setHiringType(e.target.value)} style={{ marginLeft: 8 }}>
+              <select value={hiringType} onChange={e => setHiringType(e.target.value)}>
                 <option value="1">Sales</option>
                 <option value="2">IT</option>
                 <option value="3">Non-Sales</option>
                 <option value="4">Sales Support</option>
               </select>
             </label>
-            <label style={{ marginLeft: 16 }}>
+            <label>
               Level:
-              <select value={level} onChange={e => setLevel(e.target.value)} style={{ marginLeft: 8 }}>
+              <select value={level} onChange={e => setLevel(e.target.value)}>
                 <option value="1">Fresher</option>
                 <option value="2">Experienced</option>
               </select>
@@ -114,24 +131,24 @@ function ResumeScreening({ token }) {
             <button onClick={handleSubmit} disabled={loading}>
               {loading ? 'Evaluating...' : 'Evaluate'}
             </button>
-            {files.length > 0 && (
-              <div className="file-list">
-                {files.map((file, idx) => (
-                  <span className="file-item" key={idx}>
-                    {file.name}
-                    <button
-                      type="button"
-                      className="remove-file"
-                      onClick={() => setFiles(files.filter((_, i) => i !== idx))}
-                      title="Remove"
-                    >
-                      &times;
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
+          {files.length > 0 && (
+            <div className="file-list">
+              {files.map((file, idx) => (
+                <span className="file-item" key={idx}>
+                  {file.name}
+                  <button
+                    type="button"
+                    className="remove-file"
+                    onClick={() => removeFile(idx)}
+                    title="Remove"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ marginTop: '2rem' }}>
             {results.length > 0 && (
               <table>
@@ -146,10 +163,10 @@ function ResumeScreening({ token }) {
                 <tbody>
                   {results.map((res, idx) => (
                     <tr key={idx}>
-                      <td>{res.filename}</td>
-                      <td>{res.match_percent !== undefined ? res.match_percent + '%' : '-'}</td>
-                      <td>{extractDecision(res)}</td>
-                      <td>
+                      <td data-label="Resume">{res.filename}</td>
+                      <td data-label="Match %">{res.match_percent !== undefined ? res.match_percent + '%' : '-'}</td>
+                      <td data-label="Decision">{extractDecision(res)}</td>
+                      <td data-label="Details">
                         <details>
                           <summary>Show</summary>
                           <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>
@@ -179,10 +196,13 @@ function MISSummary() {
     try {
       const response = await fetch(`${API_URL}/mis-summary`);
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to fetch MIS summary');
+      }
       setMis(data.summary || []);
     } catch (err) {
       setMis([]);
-      alert('Error fetching MIS summary.');
+      alert(`Error: ${err.message}`);
     }
     setMisLoading(false);
   };
@@ -225,12 +245,12 @@ function MISSummary() {
             <tbody>
               {mis.map((row, idx) => (
                 <tr key={idx}>
-                  <td>{row.recruiter_name}</td>
-                  <td>{row.uploads}</td>
-                  <td>{row.resumes}</td>
-                  <td>{row.shortlisted}</td>
-                  <td>{row.rejected}</td>
-                  <td>
+                  <td data-label="Recruiter Name">{row.recruiter_name}</td>
+                  <td data-label="Uploads">{row.uploads}</td>
+                  <td data-label="Total Resumes">{row.resumes}</td>
+                  <td data-label="Shortlisted">{row.shortlisted}</td>
+                  <td data-label="Rejected">{row.rejected}</td>
+                  <td data-label="History">
                     {row.history && row.history.length > 0 ? (
                       <details>
                         <summary>Show</summary>
@@ -250,14 +270,14 @@ function MISSummary() {
                           <tbody>
                             {row.history.map((h, hidx) => (
                               <tr key={hidx}>
-                                <td>{h.resume_name || 'Unknown'}</td>
-                                <td>{hiringTypeLabel(h.hiring_type)}</td>
-                                <td>{levelLabel(h.level)}</td>
-                                <td>{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
-                                <td>{h.decision || '-'}</td>
-                                <td>{h.upload_date || '-'}</td>
-                                <td>{h.counts_per_day || '-'}</td>
-                                <td>
+                                <td data-label="Resume Name">{h.resume_name || 'Unknown'}</td>
+                                <td data-label="Hiring Type">{hiringTypeLabel(h.hiring_type)}</td>
+                                <td data-label="Level">{levelLabel(h.level)}</td>
+                                <td data-label="Match %">{h.match_percent !== undefined && h.match_percent !== null ? h.match_percent + '%' : '-'}</td>
+                                <td data-label="Decision">{h.decision || '-'}</td>
+                                <td data-label="Upload Date">{h.upload_date || '-'}</td>
+                                <td data-label="Counts/Day">{h.counts_per_day || '-'}</td>
+                                <td data-label="Details">
                                   <details>
                                     <summary>Show</summary>
                                     <pre style={{ whiteSpace: 'pre-wrap', fontSize: 11 }}>
