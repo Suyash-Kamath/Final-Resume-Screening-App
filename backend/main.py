@@ -21,6 +21,7 @@ import secrets
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,7 +33,6 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://final-resume-screening-app-4drk.onrender.com",
         "https://final-resume-screening-app.vercel.app",
         "http://localhost:4173",
         "https://prohire.probusinsurance.com"
@@ -43,7 +43,9 @@ app.add_middleware(
 )
 
 # MongoDB setup
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_URI =os.getenv("MONGODB_URI")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
 db = mongo_client["resume_screening"]
 mis_collection = db["mis"]
@@ -51,23 +53,23 @@ recruiters_collection = db["recruiters"]
 reset_tokens_collection = db["reset_tokens"]  # New collection for reset tokens
 
 # JWT setup
-SECRET_KEY = os.getenv("JWT_SECRET", "supersecretkey")
+SECRET_KEY ="supersecretkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 RESET_TOKEN_EXPIRE_MINUTES = 30  # 30 minutes for reset tokens
 
 # Email configuration
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-EMAIL_USERNAME = os.getenv("EMAIL_USERNAME")  # Your email
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")  # Your app password
-FROM_EMAIL = os.getenv("FROM_EMAIL", EMAIL_USERNAME)
+SMTP_SERVER = os.getenv("SMTP_SERVER")
+SMTP_PORT = os.getenv("SMTP_PORT")
+EMAIL_USERNAME=os.getenv("EMAIL_USERNAME")
+EMAIL_PASSWORD=os.getenv("EMAIL_PASSWORD")
+FROM_EMAIL=os.getenv("FROM_EMAIL")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 # Make sure to set OPENAI_API_KEY in your .env file
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY=os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Pydantic models for request/response
@@ -248,7 +250,7 @@ async def forgot_password(request: ForgotPasswordRequest):
     })
     
     # Create reset link (adjust the frontend URL as needed)
-    FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:4173")
+    FRONTEND_BASE_URL =os.getenv("FRONTEND_BASE_URL")
     reset_link = f"{FRONTEND_BASE_URL}/reset-password?token={reset_token}"
 
     
