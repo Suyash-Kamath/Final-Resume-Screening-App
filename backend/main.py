@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
+from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -22,7 +23,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
-
+import gridfs
+from bson import ObjectId
 # Load environment variables from .env file
 load_dotenv()
 
@@ -42,6 +44,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
 # MongoDB setup
 MONGODB_URI =os.getenv("MONGODB_URI")
 logging.basicConfig(level=logging.INFO)
@@ -51,7 +55,7 @@ db = mongo_client["resume_screening"]
 mis_collection = db["mis"]
 recruiters_collection = db["recruiters"]
 reset_tokens_collection = db["reset_tokens"]  # New collection for reset tokens
-
+fs = motor.motor_asyncio.AsyncIOMotorGridFSBucket(db)
 # JWT setup
 SECRET_KEY ="supersecretkey"
 ALGORITHM = "HS256"
@@ -851,9 +855,33 @@ async def analyze_resumes(
         # Define supported image extensions
         supported_images = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"]
         
+        # Read file content once
+        file_content = await file.read()
+        
+        # Store file in GridFS regardless of type
+        file_id = None
+        try:
+            file_id = await fs.upload_from_stream(
+                filename,
+                file_content,
+                metadata={
+                    "content_type": file.content_type or "application/octet-stream",
+                    "upload_date": current_date,
+                    "recruiter_name": recruiter["username"],
+                     "file_size": len(file_content)
+                }
+            )
+
+            print(f"File stored in GridFS with ID: {file_id}")
+        except Exception as e:
+            print(f"Failed to store file in GridFS: {e}")
+        
+        # Create temporary file for processing
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            tmp.write(await file.read())
+            tmp.write(file_content)
             tmp_path = tmp.name
+            
+        # Process different file types
         if suffix == ".pdf":
             resume_text = extract_text_from_pdf(tmp_path)
         elif suffix == ".docx":
@@ -876,10 +904,12 @@ async def analyze_resumes(
                 "match_percent": None,
                 "decision": "Error",
                 "details": error_msg,
-                "upload_date": format_date_with_day(current_date)
+                "upload_date": format_date_with_day(current_date),
+                "file_id": str(file_id) if file_id else None
             })
             continue
         
+        # Analyze resume
         analysis = analyze_resume(job_description, resume_text, hiring_type, level)
         if isinstance(analysis, dict):
             analysis["filename"] = filename
@@ -904,7 +934,8 @@ async def analyze_resumes(
                 "match_percent": analysis.get("match_percent"),
                 "decision": decision_label,
                 "details": analysis.get("result_text") or analysis.get("error", ""),
-                "upload_date": format_date_with_day(current_date)
+                "upload_date": format_date_with_day(current_date),
+                "file_id": str(file_id) if file_id else None
             })
         else:
             results.append({"filename": filename, "error": analysis})
@@ -915,8 +946,11 @@ async def analyze_resumes(
                 "match_percent": None,
                 "decision": "Error",
                 "details": analysis,
-                "upload_date": format_date_with_day(current_date)
+                "upload_date": format_date_with_day(current_date),
+                "file_id": str(file_id) if file_id else None
             })
+        
+        # Clean up temporary file
         os.unlink(tmp_path)
     
     # Save MIS record with history
@@ -929,6 +963,37 @@ async def analyze_resumes(
         "history": history
     })
     return JSONResponse(content={"results": results})
+
+@main_app.get("/download-resume/{file_id}")
+async def download_resume(file_id: str, recruiter=Depends(get_current_recruiter)):
+    try:
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        file_content = await grid_out.read()
+        
+        return Response(
+            content=file_content,
+            media_type=grid_out.metadata.get("content_type", "application/octet-stream"),
+            headers={
+                "Content-Disposition": f"attachment; filename={grid_out.filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="File not found")
+
+@main_app.get("/view-resume/{file_id}")
+async def view_resume(file_id: str, recruiter=Depends(get_current_recruiter)):
+    try:
+        grid_out = await fs.open_download_stream(ObjectId(file_id))
+        file_content = await grid_out.read()
+        
+        return {
+            "filename": grid_out.filename,
+            "content_type": grid_out.metadata.get("content_type", "application/octet-stream"),
+            "size": len(file_content),
+            "content": base64.b64encode(file_content).decode('utf-8')
+        }
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="File not found")
 
 @main_app.get("/mis-summary")
 async def mis_summary():

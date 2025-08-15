@@ -13,3 +13,4 @@ docx2txt
 Pillow
 pdf2image
 pydantic[email]
+pymongo
