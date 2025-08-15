@@ -305,6 +305,98 @@ function MISSummary() {
   );
 }
 
+// Daily Reports Component
+function DailyReports() {
+  const [dailyData, setDailyData] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchDailyReports = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/daily-reports`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to fetch daily reports');
+      }
+      setDailyData(data);
+    } catch (err) {
+      setDailyData(null);
+      alert(`Error: ${err.message}`);
+    }
+    setLoading(false);
+  };
+
+  const downloadReport = () => {
+    if (!dailyData) return;
+    
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `Daily Report - ${dailyData.date}\n\n`;
+    csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
+    
+    dailyData.reports.forEach(row => {
+      csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `daily_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="page-content">
+      <div className="mis-summary-section">
+        <h2 className="page-title">Daily Reports</h2>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          <button onClick={fetchDailyReports} disabled={loading}>
+            {loading ? 'Loading...' : 'Show Daily Report'}
+          </button>
+          {dailyData && dailyData.reports.length > 0 && (
+            <button onClick={downloadReport}>
+              Download Report
+            </button>
+          )}
+        </div>
+        
+        {dailyData && (
+          <>
+            <h3 style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: '1.3rem', color: '#232946' }}>
+              {dailyData.date}
+            </h3>
+            {dailyData.reports.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recruiter Name</th>
+                    <th>Total Resumes</th>
+                    <th>Shortlisted</th>
+                    <th>Rejected</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyData.reports.map((row, idx) => (
+                    <tr key={idx}>
+                      <td data-label="Recruiter Name">{row.recruiter_name}</td>
+                      <td data-label="Total Resumes">{row.total_resumes}</td>
+                      <td data-label="Shortlisted">{row.shortlisted}</td>
+                      <td data-label="Rejected">{row.rejected}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ textAlign: 'center', color: '#666' }}>No data available for today</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Dashboard Component (Navigation)
 function Dashboard({ currentPage, setCurrentPage, recruiterName, handleLogout }) {
   return (
@@ -323,6 +415,13 @@ function Dashboard({ currentPage, setCurrentPage, recruiterName, handleLogout })
           >
             MIS Summary
           </button>
+          <button
+  className={`nav-link ${currentPage === 'daily-reports' ? 'active' : ''}`}
+  onClick={() => setCurrentPage('daily-reports')}
+>
+  Daily Reports
+</button>
+
         </div>
         <div className="user-info">
           <span>Logged in as <b>{recruiterName}</b></span>
@@ -703,16 +802,18 @@ function App() {
     }
   };
 
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case 'resume-screening':
-        return <ResumeScreening token={token} />;
-      case 'mis-summary':
-        return <MISSummary />;
-      default:
-        return <ResumeScreening token={token} />;
-    }
-  };
+const renderCurrentPage = () => {
+  switch (currentPage) {
+    case 'resume-screening':
+      return <ResumeScreening token={token} />;
+    case 'mis-summary':
+      return <MISSummary />;
+    case 'daily-reports':
+      return <DailyReports />;
+    default:
+      return <ResumeScreening token={token} />;
+  }
+};
 
   return (
     <>

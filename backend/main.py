@@ -979,6 +979,50 @@ async def mis_summary():
         })
     return {"summary": summary}
 
+@main_app.get("/daily-reports")
+async def daily_reports():
+    # Get today's date in UTC
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today + timedelta(days=1)
+    
+    # Aggregate data for today only
+    pipeline = [
+        {
+            "$match": {
+                "timestamp": {
+                    "$gte": today,
+                    "$lt": tomorrow
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$recruiter_name",
+                "total_resumes": {"$sum": "$total_resumes"},
+                "shortlisted": {"$sum": "$shortlisted"},
+                "rejected": {"$sum": "$rejected"}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+    
+    daily_data = []
+    async for row in mis_collection.aggregate(pipeline):
+        daily_data.append({
+            "recruiter_name": row["_id"],
+            "total_resumes": row["total_resumes"],
+            "shortlisted": row["shortlisted"],
+            "rejected": row["rejected"]
+        })
+    
+    # Format today's date
+    today_formatted = format_date_with_day(today)
+    
+    return {
+        "date": today_formatted,
+        "reports": daily_data
+    }
+
 @main_app.get("/health")
 async def health():
     return {"status": "ok"}
