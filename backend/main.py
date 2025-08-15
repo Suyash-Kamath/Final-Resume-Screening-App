@@ -64,6 +64,7 @@ SMTP_PORT = os.getenv("SMTP_PORT")
 EMAIL_USERNAME=os.getenv("EMAIL_USERNAME")
 EMAIL_PASSWORD=os.getenv("EMAIL_PASSWORD")
 FROM_EMAIL=os.getenv("FROM_EMAIL")
+FROM_NAME=os.getenv("FROM_NAME")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
@@ -96,7 +97,7 @@ async def send_email(to_email: str, subject: str, body: str, is_html: bool = Fal
             )
         
         msg = MIMEMultipart()
-        msg['From'] = FROM_EMAIL
+        msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         
