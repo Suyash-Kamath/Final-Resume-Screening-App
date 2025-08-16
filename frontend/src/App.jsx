@@ -303,25 +303,23 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
                               <tr key={hidx}>
                                 <td data-label="Resume Name">
                                   {h.file_id ? (
-                                    <button
-                                      onClick={() => {
+                                    <a
+                                      href="#"
+                                      onClick={(e) => {
+                                        e.preventDefault();
                                         setViewingFile(h.file_id);
                                         setViewingFilename(
                                           h.resume_name || "Unknown"
                                         );
                                       }}
                                       style={{
-                                        background: "none",
-                                        border: "none",
                                         color: "#2563eb",
-                                        textDecoration: "underline",
+                                        textDecoration: "none",
                                         cursor: "pointer",
-                                        padding: 0,
-                                        font: "inherit",
                                       }}
                                     >
                                       {h.resume_name || "Unknown"}
-                                    </button>
+                                    </a>
                                   ) : (
                                     h.resume_name || "Unknown"
                                   )}
@@ -1168,24 +1166,23 @@ function App() {
     }
   };
 
-const renderCurrentPage = () => {
-  switch (currentPage) {
-    case "resume-screening":
-      return <ResumeScreening token={token} />;
-    case "mis-summary":
-      return (
-        <MISSummary
-          setViewingFile={setViewingFile}
-          setViewingFilename={setViewingFilename}
-        />
-      );
-    case "daily-reports":
-      return <DailyReports />;
-    default:
-      return <ResumeScreening token={token} />;
-  }
-};
-
+  const renderCurrentPage = () => {
+    switch (currentPage) {
+      case "resume-screening":
+        return <ResumeScreening token={token} />;
+      case "mis-summary":
+        return (
+          <MISSummary
+            setViewingFile={setViewingFile}
+            setViewingFilename={setViewingFilename}
+          />
+        );
+      case "daily-reports":
+        return <DailyReports />;
+      default:
+        return <ResumeScreening token={token} />;
+    }
+  };
 
   return (
     <>
