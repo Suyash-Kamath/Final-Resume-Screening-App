@@ -604,28 +604,39 @@ function DailyReports() {
     setLoading(false);
   };
 
-  const downloadReport = () => {
-    if (!dailyData) return;
+const downloadReport = () => {
+  if (!dailyData || !dailyData.reports) return;
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Daily Report - ${dailyData.date}\n\n`;
-    csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
+  const reportDate = dailyData.date || "Unknown Date";
+  const validTill = dailyData.valid_till ? ` (Valid till ${dailyData.valid_till})` : "";
 
-    dailyData.reports.forEach((row) => {
-      csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
-    });
+  let csvContent = "data:text/csv;charset=utf-8,";
+  csvContent += `Daily Report - ${reportDate}${validTill}\n\n`;
+  csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `daily_report_${new Date().toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  dailyData.reports.forEach((row) => {
+    const name = row.recruiter_name || "";
+    const total = row.total_resumes != null ? row.total_resumes : 0;
+    const shortlisted = row.shortlisted != null ? row.shortlisted : 0;
+    const rejected = row.rejected != null ? row.rejected : 0;
+
+    csvContent += `${name},${total},${shortlisted},${rejected}\n`;
+  });
+
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute(
+    "href",
+    encodedUri
+  );
+  link.setAttribute(
+    "download",
+    `daily_report_${reportDate}.csv`
+  );
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
   return (
     <div className="page-content">
