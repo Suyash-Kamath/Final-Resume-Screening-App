@@ -1088,6 +1088,113 @@ async def daily_reports():
         "reports": daily_data
     }
 
+
+@main_app.get("/previous-day-reports")
+async def previous_day_reports():
+    # Get yesterday's date in UTC
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = today - timedelta(days=1)
+    
+    # Aggregate data for yesterday only
+    pipeline = [
+        {
+            "$match": {
+                "timestamp": {
+                    "$gte": yesterday,
+                    "$lt": today
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$recruiter_name",
+                "total_resumes": {"$sum": "$total_resumes"},
+                "shortlisted": {"$sum": "$shortlisted"},
+                "rejected": {"$sum": "$rejected"}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+    
+    previous_day_data = []
+    async for row in mis_collection.aggregate(pipeline):
+        previous_day_data.append({
+            "recruiter_name": row["_id"],
+            "total_resumes": row["total_resumes"],
+            "shortlisted": row["shortlisted"],
+            "rejected": row["rejected"]
+        })
+    
+    # Format yesterday's date
+    yesterday_formatted = format_date_with_day(yesterday)
+    
+    return {
+        "date": yesterday_formatted,
+        "reports": previous_day_data
+    }
+
+@main_app.get("/reports/{date_type}")
+async def get_reports_by_date(date_type: str):
+    """
+    Get reports for specific date type
+    date_type can be: 'today', 'yesterday', or specific date in YYYY-MM-DD format
+    """
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    if date_type == "today":
+        start_date = today
+        end_date = today + timedelta(days=1)
+    elif date_type == "yesterday":
+        start_date = today - timedelta(days=1)
+        end_date = today
+    else:
+        try:
+            # Try to parse specific date (YYYY-MM-DD format)
+            parsed_date = datetime.strptime(date_type, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = parsed_date
+            end_date = parsed_date + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use 'today', 'yesterday', or YYYY-MM-DD")
+    
+    # Aggregate data for the specified date range
+    pipeline = [
+        {
+            "$match": {
+                "timestamp": {
+                    "$gte": start_date,
+                    "$lt": end_date
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$recruiter_name",
+                "total_resumes": {"$sum": "$total_resumes"},
+                "shortlisted": {"$sum": "$shortlisted"},
+                "rejected": {"$sum": "$rejected"}
+            }
+        },
+        {"$sort": {"_id": 1}}
+    ]
+    
+    report_data = []
+    async for row in mis_collection.aggregate(pipeline):
+        report_data.append({
+            "recruiter_name": row["_id"],
+            "total_resumes": row["total_resumes"],
+            "shortlisted": row["shortlisted"],
+            "rejected": row["rejected"]
+        })
+    
+    # Format the date
+    date_formatted = format_date_with_day(start_date)
+    
+    return {
+        "date": date_formatted,
+        "date_type": date_type,
+        "reports": report_data
+    }
+
 @main_app.get("/health")
 async def health():
     return {"status": "ok"}

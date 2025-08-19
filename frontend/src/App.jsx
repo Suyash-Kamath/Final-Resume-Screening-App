@@ -586,10 +586,13 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
 // Daily Reports Component
 function DailyReports() {
   const [dailyData, setDailyData] = useState(null);
+  const [previousDayData, setPreviousDayData] = useState(null);
+  const [currentView, setCurrentView] = useState('today'); // 'today' or 'yesterday'
   const [loading, setLoading] = useState(false);
 
   const fetchDailyReports = async () => {
     setLoading(true);
+    setCurrentView('today'); // Switch to today view
     try {
       const response = await fetch(`${API_URL}/daily-reports`);
       const data = await response.json();
@@ -599,6 +602,23 @@ function DailyReports() {
       setDailyData(data);
     } catch (err) {
       setDailyData(null);
+      alert(`Error: ${err.message}`);
+    }
+    setLoading(false);
+  };
+
+  const fetchPreviousDayReports = async () => {
+    setLoading(true);
+    setCurrentView('yesterday'); // Switch to yesterday view
+    try {
+      const response = await fetch(`${API_URL}/previous-day-reports`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to fetch previous day reports");
+      }
+      setPreviousDayData(data);
+    } catch (err) {
+      setPreviousDayData(null);
       alert(`Error: ${err.message}`);
     }
     setLoading(false);
@@ -627,20 +647,52 @@ function DailyReports() {
     document.body.removeChild(link);
   };
 
+  const downloadPreviousReport = () => {
+    if (!previousDayData) return;
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `Previous Day Report - ${previousDayData.date}\n\n`;
+    csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
+
+    previousDayData.reports.forEach((row) => {
+      csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    link.setAttribute(
+      "download",
+      `previous_day_report_${yesterday.toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="page-content">
       <div className="mis-summary-section">
         <h2 className="page-title">Daily Reports</h2>
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", justifyContent: "center" }}>
           <button onClick={fetchDailyReports} disabled={loading}>
-            {loading ? "Loading..." : "Show Daily Report"}
+            {loading ? "Loading..." : "Today's Report"}
           </button>
-          {dailyData && dailyData.reports.length > 0 && (
-            <button onClick={downloadReport}>Download Report</button>
+          <button onClick={fetchPreviousDayReports} disabled={loading}>
+            {loading ? "Loading..." : "Yesterday"}
+          </button>
+          {currentView === 'today' && dailyData && dailyData.reports.length > 0 && (
+            <button onClick={downloadReport}>Download Today</button>
+          )}
+          {currentView === 'yesterday' && previousDayData && previousDayData.reports.length > 0 && (
+            <button onClick={downloadPreviousReport}>Download Yesterday</button>
           )}
         </div>
 
-        {dailyData && (
+        {/* Show Today's Data */}
+        {currentView === 'today' && dailyData && (
           <>
             <h3
               style={{
@@ -680,11 +732,52 @@ function DailyReports() {
             )}
           </>
         )}
+
+        {/* Show Yesterday's Data */}
+        {currentView === 'yesterday' && (
+          <>
+            <h3
+              style={{
+                textAlign: "center",
+                marginBottom: "1.5rem",
+                fontSize: "1.3rem",
+                color: "#232946",
+              }}
+            >
+              {previousDayData ? previousDayData.date : "Previous Day Report"}
+            </h3>
+            {previousDayData && previousDayData.reports.length > 0 ? (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Recruiter Name</th>
+                    <th>Total Resumes</th>
+                    <th>Shortlisted</th>
+                    <th>Rejected</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previousDayData.reports.map((row, idx) => (
+                    <tr key={idx}>
+                      <td data-label="Recruiter Name">{row.recruiter_name}</td>
+                      <td data-label="Total Resumes">{row.total_resumes}</td>
+                      <td data-label="Shortlisted">{row.shortlisted}</td>
+                      <td data-label="Rejected">{row.rejected}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ textAlign: "center", color: "#666" }}>
+                No data available for previous day
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
 }
-
 // Dashboard Component (Navigation)
 function Dashboard({
   currentPage,
