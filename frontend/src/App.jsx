@@ -583,55 +583,42 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
   );
 }
 
-// Daily Reports Component
+
+
+// Daily Reports Component (Modern Design)
 function DailyReports() {
-  const [dailyData, setDailyData] = useState(null);
-  const [previousDayData, setPreviousDayData] = useState(null);
-  const [currentView, setCurrentView] = useState('today'); // 'today' or 'yesterday'
+  const [reportData, setReportData] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
 
-  const fetchDailyReports = async () => {
+  const fetchReportsForDate = async (date) => {
     setLoading(true);
-    setCurrentView('today'); // Switch to today view
-    try {
-      const response = await fetch(`${API_URL}/daily-reports`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to fetch daily reports");
-      }
-      setDailyData(data);
-    } catch (err) {
-      setDailyData(null);
-      alert(`Error: ${err.message}`);
-    }
-    setLoading(false);
-  };
+    setSelectedDate(date);
 
-  const fetchPreviousDayReports = async () => {
-    setLoading(true);
-    setCurrentView('yesterday'); // Switch to yesterday view
+    // Format date as YYYY-MM-DD
+    const formattedDate = date.toISOString().split("T")[0];
+
     try {
-      const response = await fetch(`${API_URL}/previous-day-reports`);
+      const response = await fetch(`${API_URL}/reports/${formattedDate}`);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to fetch previous day reports");
-      }
-      setPreviousDayData(data);
+      if (!response.ok) throw new Error(data.detail || "Failed to fetch reports");
+      setReportData(data);
     } catch (err) {
-      setPreviousDayData(null);
+      setReportData(null);
       alert(`Error: ${err.message}`);
     }
+
     setLoading(false);
   };
 
   const downloadReport = () => {
-    if (!dailyData) return;
+    if (!reportData) return;
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Daily Report - ${dailyData.date}\n\n`;
+    csvContent += `Daily Report - ${reportData.date}\n\n`;
     csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
 
-    dailyData.reports.forEach((row) => {
+    reportData.reports.forEach((row) => {
       csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
     });
 
@@ -640,144 +627,149 @@ function DailyReports() {
     link.setAttribute("href", encodedUri);
     link.setAttribute(
       "download",
-      `daily_report_${new Date().toISOString().split("T")[0]}.csv`
+      `daily_report_${selectedDate.toISOString().split("T")[0]}.csv`
     );
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const downloadPreviousReport = () => {
-    if (!previousDayData) return;
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Previous Day Report - ${previousDayData.date}\n\n`;
-    csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
-
-    previousDayData.reports.forEach((row) => {
-      csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    link.setAttribute(
-      "download",
-      `previous_day_report_${yesterday.toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Automatically fetch today's report on mount
+  useEffect(() => {
+    fetchReportsForDate(selectedDate);
+  }, []);
 
   return (
-    <div className="page-content">
-      <div className="mis-summary-section">
-        <h2 className="page-title">Daily Reports</h2>
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", justifyContent: "center" }}>
-          <button onClick={fetchDailyReports} disabled={loading}>
-            {loading ? "Loading..." : "Today's Report"}
-          </button>
-          <button onClick={fetchPreviousDayReports} disabled={loading}>
-            {loading ? "Loading..." : "Yesterday"}
-          </button>
-          {currentView === 'today' && dailyData && dailyData.reports.length > 0 && (
-            <button onClick={downloadReport}>Download Today</button>
-          )}
-          {currentView === 'yesterday' && previousDayData && previousDayData.reports.length > 0 && (
-            <button onClick={downloadPreviousReport}>Download Yesterday</button>
-          )}
-        </div>
+    <div style={styles.container}>
+      <h2 style={styles.title}>Daily Reports</h2>
 
-        {/* Show Today's Data */}
-        {currentView === 'today' && dailyData && (
-          <>
-            <h3
-              style={{
-                textAlign: "center",
-                marginBottom: "1.5rem",
-                fontSize: "1.3rem",
-                color: "#232946",
-              }}
-            >
-              {dailyData.date}
-            </h3>
-            {dailyData.reports.length > 0 ? (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Recruiter Name</th>
-                    <th>Total Resumes</th>
-                    <th>Shortlisted</th>
-                    <th>Rejected</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dailyData.reports.map((row, idx) => (
-                    <tr key={idx}>
-                      <td data-label="Recruiter Name">{row.recruiter_name}</td>
-                      <td data-label="Total Resumes">{row.total_resumes}</td>
-                      <td data-label="Shortlisted">{row.shortlisted}</td>
-                      <td data-label="Rejected">{row.rejected}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p style={{ textAlign: "center", color: "#666" }}>
-                No data available for today
-              </p>
-            )}
-          </>
-        )}
-
-        {/* Show Yesterday's Data */}
-        {currentView === 'yesterday' && (
-          <>
-            <h3
-              style={{
-                textAlign: "center",
-                marginBottom: "1.5rem",
-                fontSize: "1.3rem",
-                color: "#232946",
-              }}
-            >
-              {previousDayData ? previousDayData.date : "Previous Day Report"}
-            </h3>
-            {previousDayData && previousDayData.reports.length > 0 ? (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Recruiter Name</th>
-                    <th>Total Resumes</th>
-                    <th>Shortlisted</th>
-                    <th>Rejected</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previousDayData.reports.map((row, idx) => (
-                    <tr key={idx}>
-                      <td data-label="Recruiter Name">{row.recruiter_name}</td>
-                      <td data-label="Total Resumes">{row.total_resumes}</td>
-                      <td data-label="Shortlisted">{row.shortlisted}</td>
-                      <td data-label="Rejected">{row.rejected}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p style={{ textAlign: "center", color: "#666" }}>
-                No data available for previous day
-              </p>
-            )}
-          </>
-        )}
+      {/* Date Selector */}
+      <div style={styles.dateSelector}>
+        <label style={{ marginRight: "10px", fontWeight: 500 }}>Select Date:</label>
+        <input
+          type="date"
+          value={selectedDate.toISOString().split("T")[0]}
+          onChange={(e) => {
+            const pickedDate = new Date(e.target.value);
+            fetchReportsForDate(pickedDate);
+          }}
+          style={styles.dateInput}
+        />
+        <button style={styles.downloadBtn} onClick={downloadReport} disabled={!reportData}>
+          Download CSV
+        </button>
       </div>
+
+      {/* Report Cards */}
+      {loading ? (
+        <p style={{ textAlign: "center", marginTop: "3rem", color: "#666" }}>Loading report...</p>
+      ) : reportData && reportData.reports.length > 0 ? (
+        <div style={styles.cardsContainer}>
+          {reportData.reports.map((row, idx) => (
+            <div key={idx} style={styles.card}>
+              <h3 style={styles.cardTitle}>{row.recruiter_name}</h3>
+              <div style={styles.cardContent}>
+                <div style={styles.stat}>
+                  <span style={styles.statNumber}>{row.total_resumes}</span>
+                  <span style={styles.statLabel}>Total Resumes</span>
+                </div>
+                <div style={styles.stat}>
+                  <span style={{ ...styles.statNumber, color: "#4caf50" }}>{row.shortlisted}</span>
+                  <span style={styles.statLabel}>Shortlisted</span>
+                </div>
+                <div style={styles.stat}>
+                  <span style={{ ...styles.statNumber, color: "#f44336" }}>{row.rejected}</span>
+                  <span style={styles.statLabel}>Rejected</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p style={{ textAlign: "center", marginTop: "3rem", color: "#666" }}>
+          No data available for {selectedDate.toLocaleDateString()}
+        </p>
+      )}
     </div>
   );
 }
+
+// Styles
+const styles = {
+  container: {
+    maxWidth: "900px",
+    margin: "2rem auto",
+    padding: "0 1rem",
+    fontFamily: "Arial, sans-serif",
+  },
+  title: {
+    textAlign: "center",
+    marginBottom: "2rem",
+    color: "#232946",
+    fontSize: "2rem",
+  },
+  dateSelector: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: "1rem",
+    marginBottom: "2rem",
+    flexWrap: "wrap",
+  },
+  dateInput: {
+    padding: "8px 12px",
+    borderRadius: "6px",
+    border: "1px solid #ccc",
+    fontSize: "1rem",
+  },
+  downloadBtn: {
+    padding: "8px 16px",
+    backgroundColor: "#4F75FF",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "600",
+    transition: "all 0.2s",
+  },
+  cardsContainer: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+    gap: "1.5rem",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: "12px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+    padding: "1.5rem",
+    transition: "transform 0.2s, box-shadow 0.2s",
+    cursor: "pointer",
+  },
+  cardTitle: {
+    fontSize: "1.2rem",
+    marginBottom: "1rem",
+    color: "#232946",
+    textAlign: "center",
+  },
+  cardContent: {
+    display: "flex",
+    justifyContent: "space-around",
+  },
+  stat: {
+    textAlign: "center",
+  },
+  statNumber: {
+    fontSize: "1.5rem",
+    fontWeight: "700",
+    display: "block",
+  },
+  statLabel: {
+    fontSize: "0.85rem",
+    color: "#666",
+  },
+};
+
+
 // Dashboard Component (Navigation)
 function Dashboard({
   currentPage,
