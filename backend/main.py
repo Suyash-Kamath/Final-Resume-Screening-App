@@ -1046,18 +1046,26 @@ async def mis_summary():
 
 @main_app.get("/daily-reports")
 async def daily_reports():
-    # Get today's date in UTC
-    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    tomorrow = today + timedelta(days=1)
-    
-    # Aggregate data for today only
+    # IST offset
+    ist_offset = timedelta(hours=5, minutes=30)
+
+    # Current date in IST
+    now_utc = datetime.utcnow()
+    now_ist = now_utc + ist_offset
+    report_date_ist = now_ist.date()  # e.g., 17th Aug 2025
+
+    # Only allow report to be available after 11:00 AM IST
+    report_available_time_ist = datetime.combine(report_date_ist, datetime.min.time()) + timedelta(hours=11)
+    report_available_time_utc = report_available_time_ist - ist_offset
+
+    if now_utc < report_available_time_utc:
+        return {"message": "Daily report not yet available. Please check after 11:00 AM IST."}
+
+    # Match documents for the report date
     pipeline = [
         {
             "$match": {
-                "timestamp": {
-                    "$gte": today,
-                    "$lt": tomorrow
-                }
+                "report_date": report_date_ist.isoformat()  # Use 'report_date' field in your collection
             }
         },
         {
@@ -1070,7 +1078,7 @@ async def daily_reports():
         },
         {"$sort": {"_id": 1}}
     ]
-    
+
     daily_data = []
     async for row in mis_collection.aggregate(pipeline):
         daily_data.append({
@@ -1079,10 +1087,9 @@ async def daily_reports():
             "shortlisted": row["shortlisted"],
             "rejected": row["rejected"]
         })
-    
-    # Format today's date
-    today_formatted = format_date_with_day(today)
-    
+
+    today_formatted = format_date_with_day(report_date_ist)
+
     return {
         "date": today_formatted,
         "reports": daily_data
