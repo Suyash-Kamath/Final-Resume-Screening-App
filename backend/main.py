@@ -1046,27 +1046,17 @@ async def mis_summary():
 
 @main_app.get("/daily-reports")
 async def daily_reports():
-    now = datetime.utcnow()
-    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Decide which day’s report to show
-    if now.hour < 11:
-        # Before 11 AM → yesterday’s report
-        report_day = start_of_today - timedelta(days=1)
-    else:
-        # After 11 AM → today’s report
-        report_day = start_of_today
-
-    # Report is valid until next day 11 AM
-    valid_till = report_day + timedelta(days=1, hours=11)
-
-    # Aggregate recruiter data for the chosen report_day
+    # Get today's date in UTC
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today + timedelta(days=1)
+    
+    # Aggregate data for today only
     pipeline = [
         {
             "$match": {
                 "timestamp": {
-                    "$gte": report_day,
-                    "$lt": valid_till
+                    "$gte": today,
+                    "$lt": tomorrow
                 }
             }
         },
@@ -1080,19 +1070,21 @@ async def daily_reports():
         },
         {"$sort": {"_id": 1}}
     ]
-
+    
     daily_data = []
     async for row in mis_collection.aggregate(pipeline):
         daily_data.append({
             "recruiter_name": row["_id"],
-            "total_resumes": row.get("total_resumes", 0),
-            "shortlisted": row.get("shortlisted", 0),
-            "rejected": row.get("rejected", 0)
+            "total_resumes": row["total_resumes"],
+            "shortlisted": row["shortlisted"],
+            "rejected": row["rejected"]
         })
-
+    
+    # Format today's date
+    today_formatted = format_date_with_day(today)
+    
     return {
-        "report_for": format_date_with_day(report_day),   # e.g. "16th August 2025, Saturday"
-        "valid_till": format_date_with_day(valid_till),   # e.g. "17th August 2025, Sunday 11:00 AM"
+        "date": today_formatted,
         "reports": daily_data
     }
 
