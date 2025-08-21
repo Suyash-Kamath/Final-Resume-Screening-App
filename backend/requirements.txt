@@ -15,4 +15,3 @@ pdf2image
 pydantic[email]
 pymongo
 pywin32; sys_platform == "win32"
-pythoncom
