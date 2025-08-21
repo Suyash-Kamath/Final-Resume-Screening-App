@@ -25,6 +25,7 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import gridfs
 from bson import ObjectId
+import sys
 # Load environment variables from .env file
 load_dotenv()
 
@@ -416,7 +417,9 @@ def extract_text_from_doc(filepath: str) -> str:
     """
     try:
         import win32com.client
-        import pythoncom
+        if sys.platform == "win32":
+            import pythoncom
+        
         
         # Initialize COM for this thread
         pythoncom.CoInitialize()
