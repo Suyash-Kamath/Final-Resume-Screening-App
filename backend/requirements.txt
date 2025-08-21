@@ -14,3 +14,4 @@ Pillow
 pdf2image
 pydantic[email]
 pymongo
+pywin32

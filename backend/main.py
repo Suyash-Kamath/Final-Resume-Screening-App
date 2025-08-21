@@ -412,12 +412,18 @@ def extract_text_from_pdf(filepath):
 
 def extract_text_from_doc(filepath: str) -> str:
     """
-    Extract text from legacy .doc files using textract.
+    Extract text from legacy .doc files on Windows using pywin32 (MS Word).
     """
     try:
-        import textract
-        text = textract.process(filepath)
-        return text.decode("utf-8").strip() if text else "❌ Could not extract text from .doc file."
+        import win32com.client
+
+        word = win32com.client.Dispatch("Word.Application")
+        word.Visible = False
+        doc = word.Documents.Open(filepath)
+        text = doc.Content.Text
+        doc.Close()
+        word.Quit()
+        return text.strip()
     except Exception as e:
         return f"❌ Error extracting text from DOC: {e}"
 
