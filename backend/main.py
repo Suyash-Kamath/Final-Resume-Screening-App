@@ -25,7 +25,6 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import gridfs
 from bson import ObjectId
-import sys
 # Load environment variables from .env file
 load_dotenv()
 
@@ -411,35 +410,7 @@ def extract_text_from_pdf(filepath):
         return f"❌ Error during OCR fallback: {e}"
 
 
-def extract_text_from_doc(filepath: str) -> str:
-    """
-    Extract text from legacy .doc files on Windows using pywin32 (MS Word).
-    """
-    try:
-        import win32com.client
-        if sys.platform == "win32":
-            import pythoncom
-        
-        
-        # Initialize COM for this thread
-        pythoncom.CoInitialize()
-        
-        try:
-            word = win32com.client.Dispatch("Word.Application")
-            word.Visible = False
-            word.DisplayAlerts = False  # Disable alerts
-            doc = word.Documents.Open(filepath)
-            text = doc.Content.Text
-            doc.Close(False)  # Don't save changes
-            word.Quit()
-            return text.strip()
-        finally:
-            pythoncom.CoUninitialize()
-            
-    except ImportError:
-        return "❌ Error: pywin32 package not installed. Cannot process .doc files."
-    except Exception as e:
-        return f"❌ Error extracting text from DOC: {e}"
+
 
 def extract_text_from_docx(filepath: str) -> str:
     """
@@ -915,14 +886,12 @@ async def analyze_resumes(
             resume_text = extract_text_from_pdf(tmp_path)
         elif suffix == ".docx":
             resume_text = extract_text_from_docx(tmp_path)
-        elif suffix == ".doc":
-              resume_text = extract_text_from_doc(tmp_path)
         elif suffix in supported_images:
             print(f"Processing image file: {filename} with suffix: {suffix}")  # Debug log
             resume_text = extract_text_from_image(tmp_path)
         else:
             os.unlink(tmp_path)
-            error_msg = f"Unsupported file type: {suffix}. Only PDF,DOC, DOCX, and image files (JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed."
+            error_msg = f"Unsupported file type: {suffix}. Only PDF, DOCX, and image files (JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed."
             print(f"File rejected: {filename} with suffix: {suffix}")  # Debug log
             results.append({
                 "filename": filename,
