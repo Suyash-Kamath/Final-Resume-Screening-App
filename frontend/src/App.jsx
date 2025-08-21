@@ -141,7 +141,7 @@ function ResumeScreening({ token }) {
             <label className="custom-file-upload">
               <input
                 type="file"
-                accept=".pdf,.docx,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
                 multiple
                 onChange={handleFileChange}
                 style={{ display: "none" }}

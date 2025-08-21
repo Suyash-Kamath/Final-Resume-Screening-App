@@ -410,6 +410,16 @@ def extract_text_from_pdf(filepath):
         return f"❌ Error during OCR fallback: {e}"
 
 
+def extract_text_from_doc(filepath: str) -> str:
+    """
+    Extract text from legacy .doc files using textract.
+    """
+    try:
+        import textract
+        text = textract.process(filepath)
+        return text.decode("utf-8").strip() if text else "❌ Could not extract text from .doc file."
+    except Exception as e:
+        return f"❌ Error extracting text from DOC: {e}"
 
 
 def extract_text_from_docx(filepath: str) -> str:
@@ -886,6 +896,8 @@ async def analyze_resumes(
             resume_text = extract_text_from_pdf(tmp_path)
         elif suffix == ".docx":
             resume_text = extract_text_from_docx(tmp_path)
+        elif suffix == ".doc":
+              resume_text = extract_text_from_doc(tmp_path)
         elif suffix in supported_images:
             print(f"Processing image file: {filename} with suffix: {suffix}")  # Debug log
             resume_text = extract_text_from_image(tmp_path)
