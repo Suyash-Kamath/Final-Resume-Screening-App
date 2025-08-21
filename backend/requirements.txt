@@ -15,3 +15,4 @@ pdf2image
 pydantic[email]
 pymongo
 pywin32
+pythoncom

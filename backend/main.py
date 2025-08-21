@@ -416,17 +416,27 @@ def extract_text_from_doc(filepath: str) -> str:
     """
     try:
         import win32com.client
-
-        word = win32com.client.Dispatch("Word.Application")
-        word.Visible = False
-        doc = word.Documents.Open(filepath)
-        text = doc.Content.Text
-        doc.Close()
-        word.Quit()
-        return text.strip()
+        import pythoncom
+        
+        # Initialize COM for this thread
+        pythoncom.CoInitialize()
+        
+        try:
+            word = win32com.client.Dispatch("Word.Application")
+            word.Visible = False
+            word.DisplayAlerts = False  # Disable alerts
+            doc = word.Documents.Open(filepath)
+            text = doc.Content.Text
+            doc.Close(False)  # Don't save changes
+            word.Quit()
+            return text.strip()
+        finally:
+            pythoncom.CoUninitialize()
+            
+    except ImportError:
+        return "❌ Error: pywin32 package not installed. Cannot process .doc files."
     except Exception as e:
         return f"❌ Error extracting text from DOC: {e}"
-
 
 def extract_text_from_docx(filepath: str) -> str:
     """
@@ -909,7 +919,7 @@ async def analyze_resumes(
             resume_text = extract_text_from_image(tmp_path)
         else:
             os.unlink(tmp_path)
-            error_msg = f"Unsupported file type: {suffix}. Only PDF, DOCX, and image files (JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed."
+            error_msg = f"Unsupported file type: {suffix}. Only PDF,DOC, DOCX, and image files (JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed."
             print(f"File rejected: {filename} with suffix: {suffix}")  # Debug log
             results.append({
                 "filename": filename,
