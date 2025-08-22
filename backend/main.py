@@ -409,79 +409,74 @@ def extract_text_from_pdf(filepath):
     except Exception as e:
         return f"❌ Error during OCR fallback: {e}"
 
-def extract_text_from_doc(filepath: str) -> str:
+def convert_doc_to_pdf(filepath: str) -> str:
     """
-    Extract text from .doc files.
-    Handles both:
-    - Naukri-style HTML disguised as .doc
-    - Real binary Word .doc (97–2003)
+    Convert DOC/DOCX files to PDF and then extract text using existing PDF logic.
     """
     try:
-        # Try reading as plain text first (detect HTML-based .doc)
-        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            content = f.read()
-
-        if "<html" in content.lower():
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(content, "html.parser")
-            text = soup.get_text(separator="\n")
-            return text.strip()
-    except Exception:
-        pass  # Ignore and try binary mode
-
-    # Try binary with mammoth
-    try:
-        import mammoth
-        with open(filepath, "rb") as doc_file:
-            result = mammoth.extract_raw_text(doc_file)
-            return result.value.strip()
+        import subprocess
+        import platform
+        
+        # Create a temporary PDF file
+        pdf_filepath = filepath.replace(os.path.splitext(filepath)[1], "_converted.pdf")
+        
+        # Use LibreOffice headless mode to convert to PDF
+        if platform.system() == "Windows":
+            # Windows LibreOffice path
+            libreoffice_cmd = [
+                "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", os.path.dirname(pdf_filepath),
+                filepath
+            ]
+        else:
+            # Linux/Mac LibreOffice path
+            libreoffice_cmd = [
+                "libreoffice",
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", os.path.dirname(pdf_filepath),
+                filepath
+            ]
+        
+        # Execute conversion
+        result = subprocess.run(libreoffice_cmd, 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=30)
+        
+        if result.returncode != 0:
+            raise Exception(f"LibreOffice conversion failed: {result.stderr}")
+        
+        # The converted PDF will have the same name but with .pdf extension
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        converted_pdf = os.path.join(os.path.dirname(pdf_filepath), f"{base_name}.pdf")
+        
+        if not os.path.exists(converted_pdf):
+            raise Exception("Converted PDF file not found")
+        
+        # Use existing PDF extraction logic
+        extracted_text = extract_text_from_pdf(converted_pdf)
+        
+        # Clean up the converted PDF
+        try:
+            os.unlink(converted_pdf)
+        except:
+            pass
+            
+        return extracted_text
+        
     except Exception as e:
-        print(f"❌ Error extracting DOC: {e}")
-        return ""   # return empty string, not error text
+        return f"⚠️ Error converting DOC/DOCX to PDF: {e}"
 
-
+# Replace the existing extract_text_from_docx function
 def extract_text_from_docx(filepath: str) -> str:
-    """
-    Enhanced DOCX extractor for resumes.
-    Uses python-docx (body, tables) + docx2txt (headers, textboxes).
-    """
-    try:
-        from docx import Document
-        import docx2txt
+    return convert_doc_to_pdf(filepath)
 
-        full_text = []
-
-        # Method 1: python-docx
-        try:
-            doc = Document(filepath)
-            for para in doc.paragraphs:
-                if para.text.strip():
-                    full_text.append(para.text.strip())
-            for table in doc.tables:
-                for row in table.rows:
-                    row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
-                    if row_text:
-                        full_text.append(" | ".join(row_text))
-        except Exception as e:
-            print(f"⚠️ python-docx failed: {e}")
-
-        # Method 2: docx2txt
-        try:
-            fallback_text = docx2txt.process(filepath)
-            if fallback_text and fallback_text.strip():
-                for line in fallback_text.splitlines():
-                    if line.strip() and line.strip() not in full_text:
-                        full_text.append(line.strip())
-        except Exception as e:
-            print(f"⚠️ docx2txt failed: {e}")
-
-        # Cleanup
-        final_text = "\n".join(dict.fromkeys(full_text))
-        return final_text.strip()
-    except Exception as e:
-        print(f"❌ Error extracting DOCX: {e}")
-        return ""   # return empty string
-
+# Replace the existing extract_text_from_doc function  
+def extract_text_from_doc(filepath: str) -> str:
+    return convert_doc_to_pdf(filepath)
 def extract_text_from_image(filepath: str) -> str:
     """
     Extract text from image files using OpenAI's Vision API (GPT-4 Vision).
