@@ -409,59 +409,27 @@ def extract_text_from_pdf(filepath):
     except Exception as e:
         return f"❌ Error during OCR fallback: {e}"
 
+from docx2pdf import convert as docx2pdf_convert
+import tempfile
+
 def convert_doc_to_pdf(filepath: str) -> str:
     """
     Convert DOC/DOCX files to PDF and then extract text using existing PDF logic.
     """
     try:
-        import subprocess
-        import platform
+        # Create temporary PDF file
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
+            pdf_filepath = tmp_pdf.name
         
-        # Create a temporary PDF file
-        pdf_filepath = filepath.replace(os.path.splitext(filepath)[1], "_converted.pdf")
-        
-        # Use LibreOffice headless mode to convert to PDF
-        if platform.system() == "Windows":
-            # Windows LibreOffice path
-            libreoffice_cmd = [
-                "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", os.path.dirname(pdf_filepath),
-                filepath
-            ]
-        else:
-            # Linux/Mac LibreOffice path
-            libreoffice_cmd = [
-                "libreoffice",
-                "--headless",
-                "--convert-to", "pdf",
-                "--outdir", os.path.dirname(pdf_filepath),
-                filepath
-            ]
-        
-        # Execute conversion
-        result = subprocess.run(libreoffice_cmd, 
-                              capture_output=True, 
-                              text=True, 
-                              timeout=30)
-        
-        if result.returncode != 0:
-            raise Exception(f"LibreOffice conversion failed: {result.stderr}")
-        
-        # The converted PDF will have the same name but with .pdf extension
-        base_name = os.path.splitext(os.path.basename(filepath))[0]
-        converted_pdf = os.path.join(os.path.dirname(pdf_filepath), f"{base_name}.pdf")
-        
-        if not os.path.exists(converted_pdf):
-            raise Exception("Converted PDF file not found")
+        # Convert to PDF
+        docx2pdf_convert(filepath, pdf_filepath)
         
         # Use existing PDF extraction logic
-        extracted_text = extract_text_from_pdf(converted_pdf)
+        extracted_text = extract_text_from_pdf(pdf_filepath)
         
         # Clean up the converted PDF
         try:
-            os.unlink(converted_pdf)
+            os.unlink(pdf_filepath)
         except:
             pass
             
@@ -470,13 +438,13 @@ def convert_doc_to_pdf(filepath: str) -> str:
     except Exception as e:
         return f"⚠️ Error converting DOC/DOCX to PDF: {e}"
 
-# Replace the existing extract_text_from_docx function
+# Replace the existing functions
 def extract_text_from_docx(filepath: str) -> str:
     return convert_doc_to_pdf(filepath)
 
-# Replace the existing extract_text_from_doc function  
 def extract_text_from_doc(filepath: str) -> str:
     return convert_doc_to_pdf(filepath)
+    
 def extract_text_from_image(filepath: str) -> str:
     """
     Extract text from image files using OpenAI's Vision API (GPT-4 Vision).
