@@ -437,8 +437,8 @@ def extract_text_from_doc(filepath: str) -> str:
 
 def extract_text_from_docx(filepath: str) -> str:
     """
-    Enhanced DOCX extractor for Naukri resumes and other structured documents.
-    Tries structured paragraph and table parsing first, then falls back to docx2txt.
+    Enhanced DOCX extractor for Naukri resumes and structured documents.
+    Handles main body, tables, and falls back to docx2txt for textboxes/headers.
     """
     try:
         from docx import Document
@@ -452,27 +452,25 @@ def extract_text_from_docx(filepath: str) -> str:
         # Extract paragraphs
         for para in doc.paragraphs:
             line = para.text.strip()
-            if line and line not in full_text:
+            if line:
                 full_text.append(line)
 
-        # Extract from tables
+        # Extract tables
         for table in doc.tables:
             for row in table.rows:
-                row_data = []
-                for cell in row.cells:
-                    cell_text = cell.text.strip()
-                    if cell_text and cell_text not in row_data:
-                        row_data.append(cell_text)
-                if row_data:
-                    full_text.append(" | ".join(row_data))
+                row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                if row_text:
+                    full_text.append(" | ".join(row_text))
 
-        # Fallback to docx2txt if primary fails
-        if not full_text or len("".join(full_text).strip()) < 30:
-            fallback_text = docx2txt.process(filepath)
-            if fallback_text and fallback_text.strip():
-                full_text = [line.strip() for line in fallback_text.splitlines() if line.strip()]
+        # Always try fallback (docx2txt can capture headers/footers/textboxes)
+        fallback_text = docx2txt.process(filepath)
+        if fallback_text and fallback_text.strip():
+            for line in fallback_text.splitlines():
+                line = line.strip()
+                if line and line not in full_text:
+                    full_text.append(line)
 
-        # Final cleanup: remove exact duplicates while preserving order
+        # Final cleanup: remove duplicates, preserve order
         final_text = "\n".join(dict.fromkeys(full_text))
         return final_text.strip() if final_text else "❌ Could not extract usable text from this resume."
 
