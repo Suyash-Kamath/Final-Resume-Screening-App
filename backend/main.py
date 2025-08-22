@@ -409,7 +409,6 @@ def extract_text_from_pdf(filepath):
     except Exception as e:
         return f"❌ Error during OCR fallback: {e}"
 
-
 def extract_text_from_doc(filepath: str) -> str:
     """
     Extract text from .doc files.
@@ -418,34 +417,33 @@ def extract_text_from_doc(filepath: str) -> str:
     - Real binary Word .doc (97–2003)
     """
     try:
-        # Try reading as plain text first (to detect HTML-based .doc)
+        # Try reading as plain text first (detect HTML-based .doc)
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         if "<html" in content.lower():
-            print("🔍 Detected HTML-based .doc")
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(content, "html.parser")
             text = soup.get_text(separator="\n")
-            return text.strip() if text.strip() else "❌ No usable text found in HTML-based .doc resume."
+            return text.strip()
+    except Exception:
+        pass  # Ignore and try binary mode
 
-        else:
-            # If not HTML → it’s a binary .doc
-            print("🔍 Detected binary .doc")
-            import mammoth
-            with open(filepath, "rb") as doc_file:
-                result = mammoth.extract_raw_text(doc_file)
-                text = result.value
-                return text.strip() if text.strip() else "❌ Could not extract usable text from binary .doc resume."
-
+    # Try binary with mammoth
+    try:
+        import mammoth
+        with open(filepath, "rb") as doc_file:
+            result = mammoth.extract_raw_text(doc_file)
+            return result.value.strip()
     except Exception as e:
-        return f"❌ Error extracting text from DOC: {e}"
+        print(f"❌ Error extracting DOC: {e}")
+        return ""   # return empty string, not error text
 
 
 def extract_text_from_docx(filepath: str) -> str:
     """
-    Enhanced DOCX extractor for Naukri resumes and structured documents.
-    Handles main body, tables, and falls back to docx2txt for textboxes/headers.
+    Enhanced DOCX extractor for resumes.
+    Uses python-docx (body, tables) + docx2txt (headers, textboxes).
     """
     try:
         from docx import Document
@@ -453,37 +451,36 @@ def extract_text_from_docx(filepath: str) -> str:
 
         full_text = []
 
-        # Primary extraction using python-docx
-        doc = Document(filepath)
+        # Method 1: python-docx
+        try:
+            doc = Document(filepath)
+            for para in doc.paragraphs:
+                if para.text.strip():
+                    full_text.append(para.text.strip())
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                    if row_text:
+                        full_text.append(" | ".join(row_text))
+        except Exception as e:
+            print(f"⚠️ python-docx failed: {e}")
 
-        # Extract paragraphs
-        for para in doc.paragraphs:
-            line = para.text.strip()
-            if line:
-                full_text.append(line)
+        # Method 2: docx2txt
+        try:
+            fallback_text = docx2txt.process(filepath)
+            if fallback_text and fallback_text.strip():
+                for line in fallback_text.splitlines():
+                    if line.strip() and line.strip() not in full_text:
+                        full_text.append(line.strip())
+        except Exception as e:
+            print(f"⚠️ docx2txt failed: {e}")
 
-        # Extract tables
-        for table in doc.tables:
-            for row in table.rows:
-                row_text = [cell.text.strip() for cell in row.cells if cell.text.strip()]
-                if row_text:
-                    full_text.append(" | ".join(row_text))
-
-        # Always try fallback (docx2txt can capture headers/footers/textboxes)
-        fallback_text = docx2txt.process(filepath)
-        if fallback_text and fallback_text.strip():
-            for line in fallback_text.splitlines():
-                line = line.strip()
-                if line and line not in full_text:
-                    full_text.append(line)
-
-        # Final cleanup: remove duplicates, preserve order
+        # Cleanup
         final_text = "\n".join(dict.fromkeys(full_text))
-        return final_text.strip() if final_text else "❌ Could not extract usable text from this resume."
-
+        return final_text.strip()
     except Exception as e:
-        return f"❌ Error extracting text from DOCX: {e}"
-
+        print(f"❌ Error extracting DOCX: {e}")
+        return ""   # return empty string
 
 def extract_text_from_image(filepath: str) -> str:
     """
