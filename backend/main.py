@@ -412,38 +412,212 @@ def extract_text_from_pdf(filepath):
 from docx2pdf import convert as docx2pdf_convert
 import tempfile
 
-def convert_doc_to_pdf(filepath: str) -> str:
+def extract_text_from_doc(filepath: str) -> str:
     """
-    Convert DOC/DOCX files to PDF and then extract text using existing PDF logic.
+    Extract text from .doc files.
+    Handles both:
+    - Naukri-style HTML disguised as .doc
+    - Real binary Word .doc (97–2003)
     """
     try:
-        # Create temporary PDF file
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
-            pdf_filepath = tmp_pdf.name
+        # Method 1: Try reading as HTML first (common with Naukri downloads)
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read()
         
-        # Convert to PDF
-        docx2pdf_convert(filepath, pdf_filepath)
-        
-        # Use existing PDF extraction logic
-        extracted_text = extract_text_from_pdf(pdf_filepath)
-        
-        # Clean up the converted PDF
-        try:
-            os.unlink(pdf_filepath)
-        except:
-            pass
-            
-        return extracted_text
-        
+        # Check if it's HTML content
+        if any(tag in content.lower() for tag in ["<html", "<body", "<div", "<p>", "<table"]):
+            try:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(content, "html.parser")
+                
+                # Remove script and style elements
+                for script in soup(["script", "style"]):
+                    script.decompose()
+                
+                # Extract text with proper spacing
+                text = soup.get_text(separator="\n")
+                
+                # Clean up the text
+                lines = []
+                for line in text.split('\n'):
+                    line = line.strip()
+                    if line and not line.isspace():
+                        lines.append(line)
+                
+                result = '\n'.join(lines)
+                if result and len(result.strip()) > 10:  # Ensure we got meaningful content
+                    return result.strip()
+            except ImportError:
+                print("BeautifulSoup not available, trying alternative method")
+                # Fallback: Basic HTML tag removal
+                import re
+                text = re.sub('<[^<]+?>', ' ', content)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) > 10:
+                    return text
     except Exception as e:
-        return f"⚠️ Error converting DOC/DOCX to PDF: {e}"
+        print(f"HTML extraction failed: {e}")
+    
+    # Method 2: Try as binary DOC file using python-docx2txt
+    try:
+        import docx2txt
+        text = docx2txt.process(filepath)
+        if text and text.strip() and len(text.strip()) > 10:
+            return text.strip()
+    except ImportError:
+        print("docx2txt not available")
+    except Exception as e:
+        print(f"docx2txt extraction failed: {e}")
+    
+    # Method 3: Try with mammoth for binary DOC files
+    try:
+        import mammoth
+        with open(filepath, "rb") as doc_file:
+            result = mammoth.extract_raw_text(doc_file)
+            if result.value and result.value.strip() and len(result.value.strip()) > 10:
+                return result.value.strip()
+    except ImportError:
+        print("mammoth not available")
+    except Exception as e:
+        print(f"mammoth extraction failed: {e}")
+    
+    # Method 4: Try reading as plain text with different encodings
+    for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+        try:
+            with open(filepath, "r", encoding=encoding, errors="ignore") as f:
+                content = f.read()
+            
+            # Basic cleanup
+            import re
+            content = re.sub(r'[^\x20-\x7E\n\r\t]', ' ', content)  # Remove non-printable chars
+            content = re.sub(r'\s+', ' ', content).strip()
+            
+            if len(content) > 50:  # Ensure meaningful content
+                return content
+        except Exception:
+            continue
+    
+    return "❌ Unable to extract text from DOC file. Please convert to PDF or DOCX format."
 
-# Replace the existing functions
 def extract_text_from_docx(filepath: str) -> str:
-    return convert_doc_to_pdf(filepath)
-
-def extract_text_from_doc(filepath: str) -> str:
-    return convert_doc_to_pdf(filepath)
+    """
+    Enhanced DOCX extractor for resumes.
+    Uses multiple methods to ensure comprehensive text extraction.
+    """
+    full_text = []
+    
+    # Method 1: python-docx (most comprehensive for structured content)
+    try:
+        from docx import Document
+        doc = Document(filepath)
+        
+        # Extract paragraphs
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if text and text not in full_text:
+                full_text.append(text)
+        
+        # Extract tables
+        for table in doc.tables:
+            for row in table.rows:
+                row_texts = []
+                for cell in row.cells:
+                    cell_text = cell.text.strip()
+                    if cell_text:
+                        row_texts.append(cell_text)
+                if row_texts:
+                    table_row = " | ".join(row_texts)
+                    if table_row not in full_text:
+                        full_text.append(table_row)
+        
+        # Extract headers and footers
+        for section in doc.sections:
+            # Headers
+            if section.header:
+                for para in section.header.paragraphs:
+                    text = para.text.strip()
+                    if text and text not in full_text:
+                        full_text.append(text)
+            # Footers
+            if section.footer:
+                for para in section.footer.paragraphs:
+                    text = para.text.strip()
+                    if text and text not in full_text:
+                        full_text.append(text)
+        
+        print(f"python-docx extracted {len(full_text)} text elements")
+        
+    except ImportError:
+        print("python-docx not available")
+    except Exception as e:
+        print(f"python-docx extraction failed: {e}")
+    
+    # Method 2: docx2txt (good for textboxes and complex layouts)
+    try:
+        import docx2txt
+        docx2txt_content = docx2txt.process(filepath)
+        if docx2txt_content and docx2txt_content.strip():
+            # Split into lines and add unique ones
+            for line in docx2txt_content.splitlines():
+                line = line.strip()
+                if line and line not in full_text:
+                    # Check if it's not already contained in existing text
+                    is_duplicate = any(line in existing for existing in full_text)
+                    if not is_duplicate:
+                        full_text.append(line)
+        print(f"docx2txt added additional content")
+    except ImportError:
+        print("docx2txt not available")
+    except Exception as e:
+        print(f"docx2txt extraction failed: {e}")
+    
+    # Method 3: python-docx-template (alternative approach)
+    try:
+        import zipfile
+        import xml.etree.ElementTree as ET
+        
+        with zipfile.ZipFile(filepath, 'r') as docx:
+            # Extract document.xml
+            if 'word/document.xml' in docx.namelist():
+                xml_content = docx.read('word/document.xml')
+                root = ET.fromstring(xml_content)
+                
+                # Define namespace
+                ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+                
+                # Extract text from all text nodes
+                for text_elem in root.findall('.//w:t', ns):
+                    if text_elem.text:
+                        text = text_elem.text.strip()
+                        if text and text not in full_text:
+                            full_text.append(text)
+        
+        print(f"XML extraction added additional content")
+    except Exception as e:
+        print(f"XML extraction failed: {e}")
+    
+    # Combine and clean up
+    if full_text:
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_text = []
+        for item in full_text:
+            if item.lower() not in seen:
+                seen.add(item.lower())
+                unique_text.append(item)
+        
+        # Join with newlines
+        final_text = "\n".join(unique_text)
+        
+        # Final cleanup
+        import re
+        final_text = re.sub(r'\n\s*\n', '\n\n', final_text)  # Clean up multiple newlines
+        final_text = re.sub(r'[ \t]+', ' ', final_text)       # Clean up multiple spaces/tabs
+        
+        if len(final_text.strip()) > 10:  # Ensure meaningful content
+            return final_text.strip()
+    
+    return "❌ Unable to extract text from DOCX file. Please ensure the file is not corrupted."
     
 def extract_text_from_image(filepath: str) -> str:
     """
