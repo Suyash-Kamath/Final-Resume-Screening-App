@@ -412,25 +412,32 @@ def extract_text_from_pdf(filepath):
 
 def extract_text_from_doc(filepath: str) -> str:
     """
-    Extract text from Naukri-style .doc files.
-    Many of these are actually HTML with a .doc extension.
+    Extract text from .doc files.
+    Handles both:
+    - Naukri-style HTML disguised as .doc
+    - Real binary Word .doc (97–2003)
     """
     try:
+        # Try reading as plain text first (to detect HTML-based .doc)
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
-        # If it looks like HTML, parse with BeautifulSoup
         if "<html" in content.lower():
+            print("🔍 Detected HTML-based .doc")
             from bs4 import BeautifulSoup
             soup = BeautifulSoup(content, "html.parser")
             text = soup.get_text(separator="\n")
             return text.strip() if text.strip() else "❌ No usable text found in HTML-based .doc resume."
+
         else:
-            # Try mammoth for real binary .doc
+            # If not HTML → it’s a binary .doc
+            print("🔍 Detected binary .doc")
             import mammoth
             with open(filepath, "rb") as doc_file:
                 result = mammoth.extract_raw_text(doc_file)
-                return result.value.strip() if result.value else "❌ Could not extract usable text from .doc file."
+                text = result.value
+                return text.strip() if text.strip() else "❌ Could not extract usable text from binary .doc resume."
+
     except Exception as e:
         return f"❌ Error extracting text from DOC: {e}"
 
