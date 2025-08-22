@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 pdfplumber
 python-docx
@@ -8,12 +8,12 @@ motor
 passlib[bcrypt]
 PyJWT
 openai
-pydantic
-docx2txt
+pydantic[email]
+python-docx2txt
 Pillow
 pdf2image
-pydantic[email]
 pymongo
 mammoth
-beautifulsoup4 
-docx2pdf 
+beautifulsoup4
+lxml
+docx2pdf
