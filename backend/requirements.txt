@@ -16,3 +16,4 @@ pydantic[email]
 pymongo
 mammoth
 beautifulsoup4 
+docx2pdf 
