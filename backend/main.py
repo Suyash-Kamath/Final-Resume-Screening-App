@@ -830,7 +830,7 @@ You are a professional HR assistant AI screening resumes for a **Non-Sales Fresh
 6. Skills: Must align with the JD.
 7. Stability: Not applicable for freshers.
 
-Note: Everything should match the Job Description.
+Note: Don't reject or make decisions based on age, gender and location , it was just for an extra information you can include in your evaluation. Take your decision overall based on role , responsibilities and skills
 
 --- Response Format ---
 Match %: XX%
@@ -863,7 +863,7 @@ You are a professional HR assistant AI screening resumes for a **Non-Sales Exper
    - If 2+ companies and each job ≤1 year → Reject.
    - If 1 company and ≤1 year → Ignore stability.
 
-Note: Everything should match the Job Description.
+Note: Don't reject or make decisions based on age, gender and location , it was just for an extra information you can include in your evaluation. Take your decision overall based on role , responsibilities and skills
 
 --- Response Format ---
 Match %: XX%
