@@ -9,7 +9,7 @@ passlib[bcrypt]
 PyJWT
 openai
 pydantic[email]
-python-docx2txt
+docx2txt
 Pillow
 pdf2image
 pymongo
