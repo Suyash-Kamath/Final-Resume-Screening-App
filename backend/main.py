@@ -678,7 +678,6 @@ def extract_text_from_image(filepath: str) -> str:
 
 
 
-
 def analyze_resume(jd, resume_text, hiring_choice, level_choice):
     prompt = ""
     if hiring_choice == "1":
@@ -935,42 +934,49 @@ Reason (if Rejected): ...
 """
 
     if not prompt:
-        return "❌ Error: Invalid hiring or level choice provided."
+        return {"error": "Invalid hiring or level choice provided.", "filename": ""}
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=800
-    )
-    content = response.choices[0].message.content
-    if content is not None:
-        result_text = content.strip()
-    else:
-        result_text = "Match %: 0\nDecision: ❌ Reject\nReason (if Rejected): No response from model."
-    usage = getattr(response, 'usage', None)
-
-    match_percent = 0
-    match_line = re.search(r"Match\s*%:\s*(\d+)", result_text)
-    if match_line:
-        match_percent = int(match_line.group(1))
-
-    if match_percent < 72:
-        result_text = re.sub(r"Decision:.*", "Decision: ❌ Reject", result_text)
-        if "Reason (if Rejected):" in result_text:
-            result_text = re.sub(r"Reason \(if Rejected\):.*", "Reason (if Rejected): Match % below 72% threshold.", result_text)
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=800
+        )
+        
+        content = response.choices[0].message.content
+        if content is not None:
+            result_text = content.strip()
         else:
-            result_text += "\nReason (if Rejected): Match % below 72% threshold."
+            result_text = "Match %: 0\nDecision: ❌ Reject\nReason (if Rejected): No response from model."
+            
+        usage = getattr(response, 'usage', None)
 
-    return {
-        "result_text": result_text,
-        "match_percent": match_percent,
-        "usage": {
-            "prompt_tokens": getattr(usage, 'prompt_tokens', None),
-            "completion_tokens": getattr(usage, 'completion_tokens', None),
-            "total_tokens": getattr(usage, 'total_tokens', None)
-        } if usage else None
-    }
+        match_percent = 0
+        match_line = re.search(r"Match\s*%:\s*(\d+)", result_text)
+        if match_line:
+            match_percent = int(match_line.group(1))
+
+        if match_percent < 72:
+            result_text = re.sub(r"Decision:.*", "Decision: ❌ Reject", result_text)
+            if "Reason (if Rejected):" in result_text:
+                result_text = re.sub(r"Reason \(if Rejected\):.*", "Reason (if Rejected): Match % below 72% threshold.", result_text)
+            else:
+                result_text += "\nReason (if Rejected): Match % below 72% threshold."
+
+        return {
+            "result_text": result_text,
+            "match_percent": match_percent,
+            "usage": {
+                "prompt_tokens": getattr(usage, 'prompt_tokens', None),
+                "completion_tokens": getattr(usage, 'completion_tokens', None),
+                "total_tokens": getattr(usage, 'total_tokens', None)
+            } if usage else None
+        }
+        
+    except Exception as e:
+        print(f"Error in analyze_resume: {str(e)}")
+        return {"error": f"Analysis failed: {str(e)}", "filename": ""}
 
 def extract_candidate_name(resume_text, filename):
     # This function is now unused, but kept for reference
