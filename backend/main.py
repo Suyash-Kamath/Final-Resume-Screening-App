@@ -74,7 +74,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 # Make sure to set OPENAI_API_KEY in your .env file
-OPENAI_API_KEY=os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY=os.getenv("OPENAI_API_KEY").strip()
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Pydantic models for request/response
