@@ -56,3 +56,4 @@ Pillow
 lxml
 pydantic
 email-validator
+docx2pdf
