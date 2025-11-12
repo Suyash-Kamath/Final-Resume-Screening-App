@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: your-app-name
+    env: python
+    buildCommand: |
+      apt-get update && apt-get install -y \
+        build-essential \
+        libxml2-dev \
+        libxslt1-dev \
+        libjpeg-dev \
+        zlib1g-dev \
+        poppler-utils
+      pip install --upgrade pip setuptools wheel
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
