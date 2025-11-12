@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr,field_validator
 from typing import List
 import pdfplumber
 import tempfile
@@ -25,6 +25,7 @@ from email.mime.multipart import MIMEMultipart
 import logging
 import gridfs
 from bson import ObjectId
+import hashlib
 # Load environment variables from .env file
 load_dotenv()
 
@@ -48,6 +49,8 @@ app.add_middleware(
 
 # MongoDB setup
 MONGODB_URI =os.getenv("MONGODB_URI")
+if not MONGODB_URI:
+    raise ValueError("MONGODB_URI is not set in .env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URI)
@@ -84,12 +87,37 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
-
+    
+    @field_validator('new_password')
+    @classmethod
+    def password_requirements(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+        if len(v) > 128:
+            raise ValueError('Password is too long (max 128 characters)')
+        return v
+    
 class RecruiterRegistration(BaseModel):
     username: str
     password: str
     email: EmailStr
-
+    
+    @field_validator('password')
+    @classmethod
+    def password_requirements(cls, v):
+        if len(v) < 6:
+            raise ValueError('Password must be at least 6 characters long')
+        if len(v) > 128:
+            raise ValueError('Password is too long (max 128 characters)')
+        return v
+    
+    @field_validator('username')
+    @classmethod
+    def username_valid(cls, v):
+        if len(v) < 3:
+            raise ValueError('Username must be at least 3 characters')
+        return v
+    
 # --- Email Helper Functions ---
 async def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     """Send email using SMTP"""
@@ -139,11 +167,21 @@ def verify_reset_token(token: str):
     except jwt.PyJWTError:
         return None
 
-# --- Recruiter Auth Helpers ---
 def verify_password(plain, hashed):
+    """Verify password, handling long passwords the same way as hashing"""
+    # Apply same pre-hash logic for verification
+    password_bytes = plain.encode('utf-8')
+    if len(password_bytes) > 72:
+        plain = hashlib.sha256(password_bytes).hexdigest()
     return pwd_context.verify(plain, hashed)
 
 def get_password_hash(password):
+    """Hash password with bcrypt, handling long passwords via SHA256 pre-hashing"""
+    # If password is too long for bcrypt (>72 bytes), pre-hash with SHA256
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        # Pre-hash with SHA256 to ensure it fits within bcrypt's limit
+        password = hashlib.sha256(password_bytes).hexdigest()
     return pwd_context.hash(password)
 
 async def get_recruiter(username: str):
@@ -176,33 +214,42 @@ async def get_current_recruiter(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return recruiter
 
-# --- Auth Endpoints ---
 @main_app.post("/register")
 async def register(recruiter_data: RecruiterRegistration):
-    username = recruiter_data.username.strip()
-    email = recruiter_data.email.strip().lower()
+    try:
+        username = recruiter_data.username.strip()
+        email = recruiter_data.email.strip().lower()
+        
+        # Check if username already exists
+        existing_username = await recruiters_collection.find_one({"username": username})
+        if existing_username:
+            raise HTTPException(status_code=400, detail="Username already registered")
+        
+        # Check if email already exists
+        existing_email = await recruiters_collection.find_one({"email": email})
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        hashed = get_password_hash(recruiter_data.password)
+        
+        await recruiters_collection.insert_one({
+            "username": username,
+            "email": email,
+            "hashed_password": hashed,
+            "created_at": datetime.utcnow()
+        })
+        
+        return {"msg": "Recruiter registered successfully"}
+    except HTTPException:
+        raise
+    except ValueError as e:
+        # Handle validation errors from pydantic validators
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during registration")
     
-    # Check if username already exists
-    existing_username = await recruiters_collection.find_one({"username": username})
-    if existing_username:
-        raise HTTPException(status_code=400, detail="Username already registered")
     
-    # Check if email already exists
-    existing_email = await recruiters_collection.find_one({"email": email})
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    hashed = get_password_hash(recruiter_data.password)
-    
-    await recruiters_collection.insert_one({
-        "username": username,
-        "email": email,
-        "hashed_password": hashed,
-        "created_at": datetime.utcnow()
-    })
-    
-    return {"msg": "Recruiter registered successfully"}
-
 @main_app.post("/register-form")
 async def register_form(form: OAuth2PasswordRequestForm = Depends()):
     """Legacy registration endpoint for form-based registration"""
@@ -220,16 +267,27 @@ async def register_form(form: OAuth2PasswordRequestForm = Depends()):
 
 @main_app.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
-    username = form.username.strip()
-    recruiter = await recruiters_collection.find_one({"username": username})
-    if not recruiter or not verify_password(form.password, recruiter["hashed_password"]):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token = create_access_token(data={"sub": recruiter["username"]})
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer", 
-        "recruiter_name": recruiter["username"]
-    }
+    try:
+        username = form.username.strip()
+        recruiter = await recruiters_collection.find_one({"username": username})
+        
+        if not recruiter:
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
+        
+        if not verify_password(form.password, recruiter["hashed_password"]):
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
+        
+        access_token = create_access_token(data={"sub": recruiter["username"]})
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer", 
+            "recruiter_name": recruiter["username"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during login")
 
 @main_app.post("/forgot-password")
 async def forgot_password(request: ForgotPasswordRequest):
@@ -288,48 +346,58 @@ async def forgot_password(request: ForgotPasswordRequest):
 @main_app.post("/reset-password")
 async def reset_password(request: ResetPasswordRequest):
     """Reset password using token"""
-    
-    # Verify token
-    email = verify_reset_token(request.token)
-    if not email:
-        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-    
-    # Check if token exists in database and is not used
-    token_doc = await reset_tokens_collection.find_one({
-        "token": request.token,
-        "used": False,
-        "expires_at": {"$gt": datetime.utcnow()}
-    })
-    
-    if not token_doc:
-        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-    
-    # Get recruiter
-    recruiter = await get_recruiter_by_email(email)
-    if not recruiter:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Update password
-    hashed_password = get_password_hash(request.new_password)
-    
-    await recruiters_collection.update_one(
-        {"email": email},
-        {
-            "$set": {
-                "hashed_password": hashed_password,
-                "password_updated_at": datetime.utcnow()
+    try:
+        # Validate new password length
+        if len(request.new_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        if len(request.new_password) > 128:
+            raise HTTPException(status_code=400, detail="Password is too long (max 128 characters)")
+        
+        # Verify token
+        email = verify_reset_token(request.token)
+        if not email:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+        # Check if token exists in database and is not used
+        token_doc = await reset_tokens_collection.find_one({
+            "token": request.token,
+            "used": False,
+            "expires_at": {"$gt": datetime.utcnow()}
+        })
+        
+        if not token_doc:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+        
+        # Get recruiter
+        recruiter = await get_recruiter_by_email(email)
+        if not recruiter:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Update password (using our fixed hash function)
+        hashed_password = get_password_hash(request.new_password)
+        
+        await recruiters_collection.update_one(
+            {"email": email},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "password_updated_at": datetime.utcnow()
+                }
             }
-        }
-    )
-    
-    # Mark token as used
-    await reset_tokens_collection.update_one(
-        {"token": request.token},
-        {"$set": {"used": True, "used_at": datetime.utcnow()}}
-    )
-    
-    return {"msg": "Password reset successfully"}
-
+        )
+        
+        # Mark token as used
+        await reset_tokens_collection.update_one(
+            {"token": request.token},
+            {"$set": {"used": True, "used_at": datetime.utcnow()}}
+        )
+        
+        return {"msg": "Password reset successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during password reset")
 @main_app.get("/verify-reset-token/{token}")
 async def verify_reset_token_endpoint(token: str):
     """Verify if reset token is valid"""
@@ -1165,6 +1233,57 @@ async def view_resume(file_id: str, recruiter=Depends(get_current_recruiter)):
     except Exception as e:
         raise HTTPException(status_code=404, detail="File not found")
 
+# @main_app.get("/mis-summary")
+# async def mis_summary():
+#     pipeline = [
+#         {
+#             "$group": {
+#                 "_id": "$recruiter_name",
+#                 "uploads": {"$sum": 1},
+#                 "total_resumes": {"$sum": "$total_resumes"},
+#                 "shortlisted": {"$sum": "$shortlisted"},
+#                 "rejected": {"$sum": "$rejected"},
+#                 "history": {"$push": "$history"}
+#             }
+#         },
+#         {"$sort": {"_id": 1}}
+#     ]
+    
+#     summary = []
+#     async for row in mis_collection.aggregate(pipeline):
+#         # Flatten the list of lists in history
+#         flat_history = [item for sublist in row["history"] for item in sublist]
+        
+#         # Sort by upload_date in descending order (newest first)
+#         flat_history.sort(key=lambda x: x.get("upload_date", ""), reverse=True)
+        
+#         # Calculate daily counts for this recruiter
+#         daily_counts = {}
+#         for item in flat_history:
+#             upload_date = item.get("upload_date", "")
+#             if upload_date:
+#                 # Extract just the date part (without day name) for counting
+#                 date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+#                 daily_counts[date_part] = daily_counts.get(date_part, 0) + 1
+        
+#         # Add daily count to each history item
+#         for item in flat_history:
+#             upload_date = item.get("upload_date", "")
+#             if upload_date:
+#                 date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+#                 item["counts_per_day"] = daily_counts.get(date_part, 0)
+#             else:
+#                 item["counts_per_day"] = 0
+        
+#         summary.append({
+#             "recruiter_name": row["_id"],
+#             "uploads": row["uploads"],
+#             "resumes": row["total_resumes"],
+#             "shortlisted": row["shortlisted"],
+#             "rejected": row["rejected"],
+#             "history": flat_history
+#         })
+#     return {"summary": summary}
 @main_app.get("/mis-summary")
 async def mis_summary():
     pipeline = [
@@ -1183,26 +1302,15 @@ async def mis_summary():
     
     summary = []
     async for row in mis_collection.aggregate(pipeline):
-        # Flatten the list of lists in history
-        flat_history = [item for sublist in row["history"] for item in sublist]
+        # Flatten the list of lists in history and add timestamp for sorting
+        flat_history = []
+        for sublist in row["history"]:
+            for item in sublist:
+                flat_history.append(item)
         
-        # Calculate daily counts for this recruiter
-        daily_counts = {}
-        for item in flat_history:
-            upload_date = item.get("upload_date", "")
-            if upload_date:
-                # Extract just the date part (without day name) for counting
-                date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
-                daily_counts[date_part] = daily_counts.get(date_part, 0) + 1
-        
-        # Add daily count to each history item
-        for item in flat_history:
-            upload_date = item.get("upload_date", "")
-            if upload_date:
-                date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
-                item["counts_per_day"] = daily_counts.get(date_part, 0)
-            else:
-                item["counts_per_day"] = 0
+        # Sort by timestamp from the parent document (newest first)
+        # We need to fetch the timestamp from the original mis_collection documents
+        # Let's use a different approach - get all records for this recruiter
         
         summary.append({
             "recruiter_name": row["_id"],
@@ -1212,6 +1320,53 @@ async def mis_summary():
             "rejected": row["rejected"],
             "history": flat_history
         })
+    
+    # Now fetch all MIS records sorted by timestamp descending
+    all_records = []
+    async for record in mis_collection.find().sort("timestamp", -1):
+        for history_item in record.get("history", []):
+            history_item["_timestamp"] = record["timestamp"]
+            all_records.append({
+                "recruiter_name": record["recruiter_name"],
+                "history_item": history_item
+            })
+    
+    # Rebuild summary with sorted history
+    recruiter_history = {}
+    for record in all_records:
+        recruiter = record["recruiter_name"]
+        if recruiter not in recruiter_history:
+            recruiter_history[recruiter] = []
+        recruiter_history[recruiter].append(record["history_item"])
+    
+    # Update summary with sorted history
+    for summary_item in summary:
+        recruiter = summary_item["recruiter_name"]
+        if recruiter in recruiter_history:
+            flat_history = recruiter_history[recruiter]
+            
+            # Calculate daily counts
+            daily_counts = {}
+            for item in flat_history:
+                upload_date = item.get("upload_date", "")
+                if upload_date:
+                    date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+                    daily_counts[date_part] = daily_counts.get(date_part, 0) + 1
+            
+            # Add daily count to each history item
+            for item in flat_history:
+                upload_date = item.get("upload_date", "")
+                if upload_date:
+                    date_part = upload_date.split(',')[0] if ',' in upload_date else upload_date
+                    item["counts_per_day"] = daily_counts.get(date_part, 0)
+                else:
+                    item["counts_per_day"] = 0
+                
+                # Remove the temporary timestamp field
+                item.pop("_timestamp", None)
+            
+            summary_item["history"] = flat_history
+    
     return {"summary": summary}
 
 @main_app.get("/daily-reports")
