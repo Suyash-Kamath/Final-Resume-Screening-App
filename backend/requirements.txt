@@ -34,7 +34,7 @@ python-docx
 mammoth
 Pillow
 lxml
-jwt
+PyJWT
 fastapi
 uvicorn
 motor
