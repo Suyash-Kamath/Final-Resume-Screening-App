@@ -34,3 +34,4 @@ python-docx
 mammoth
 Pillow
 lxml
+jwt
