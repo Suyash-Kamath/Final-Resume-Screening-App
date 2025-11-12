@@ -43,8 +43,7 @@ python-dotenv
 openai
 pdfplumber
 pdf2image
-passlib
-bcrypt
+argon2-cffi
 python-jose
 cryptography
 python-multipart

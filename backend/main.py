@@ -13,7 +13,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import motor.motor_asyncio
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
+# from passlib.context import CryptContext
 import jwt
 import base64
 from io import BytesIO
@@ -26,6 +26,8 @@ import logging
 import gridfs
 from bson import ObjectId
 import hashlib
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 # Load environment variables from .env file
 load_dotenv()
 
@@ -73,7 +75,7 @@ EMAIL_PASSWORD=os.getenv("EMAIL_PASSWORD")
 FROM_EMAIL=os.getenv("FROM_EMAIL")
 FROM_NAME=os.getenv("FROM_NAME")
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 # Make sure to set OPENAI_API_KEY in your .env file
@@ -167,22 +169,39 @@ def verify_reset_token(token: str):
     except jwt.PyJWTError:
         return None
 
+ph = PasswordHasher()
+
+# def verify_password(plain, hashed):
+#     """Verify password, handling long passwords the same way as hashing"""
+#     # Apply same pre-hash logic for verification
+#     password_bytes = plain.encode('utf-8')
+#     if len(password_bytes) > 72:
+#         plain = hashlib.sha256(password_bytes).hexdigest()
+#     return pwd_context.verify(plain, hashed)
+
 def verify_password(plain, hashed):
-    """Verify password, handling long passwords the same way as hashing"""
-    # Apply same pre-hash logic for verification
-    password_bytes = plain.encode('utf-8')
-    if len(password_bytes) > 72:
-        plain = hashlib.sha256(password_bytes).hexdigest()
-    return pwd_context.verify(plain, hashed)
+    """Verify password using Argon2 (no byte limit!)"""
+    try:
+        ph.verify(hashed, plain)
+        return True
+    except VerifyMismatchError:
+        return False
+    except Exception as e:
+        logger.error(f"Password verification error: {e}")
+        return False
+
+# def get_password_hash(password):
+#     """Hash password with bcrypt, handling long passwords via SHA256 pre-hashing"""
+#     # If password is too long for bcrypt (>72 bytes), pre-hash with SHA256
+#     password_bytes = password.encode('utf-8')
+#     if len(password_bytes) > 72:
+#         # Pre-hash with SHA256 to ensure it fits within bcrypt's limit
+#         password = hashlib.sha256(password_bytes).hexdigest()
+#     return pwd_context.hash(password)
 
 def get_password_hash(password):
-    """Hash password with bcrypt, handling long passwords via SHA256 pre-hashing"""
-    # If password is too long for bcrypt (>72 bytes), pre-hash with SHA256
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        # Pre-hash with SHA256 to ensure it fits within bcrypt's limit
-        password = hashlib.sha256(password_bytes).hexdigest()
-    return pwd_context.hash(password)
+    """Hash password using Argon2 (no 72-byte limit, more secure than bcrypt)"""
+    return ph.hash(password)
 
 async def get_recruiter(username: str):
     return await recruiters_collection.find_one({"username": username})
