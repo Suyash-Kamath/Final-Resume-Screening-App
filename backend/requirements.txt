@@ -35,3 +35,4 @@ mammoth
 Pillow
 lxml
 jwt
+email_validator
