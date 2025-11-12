@@ -19,3 +19,4 @@ PyJWT
 pydantic
 email-validator
 cryptography
+docx2pdf
