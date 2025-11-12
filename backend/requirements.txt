@@ -1,21 +1,3 @@
-# fastapi==0.109.0
-# uvicorn==0.27.0
-# motor==3.3.2
-# pymongo==4.6.1
-# python-dotenv==1.0.0
-# openai==1.12.0
-# pdfplumber==0.10.3
-# pdf2image==1.17.0
-# passlib[bcrypt]==1.7.4
-# bcrypt==4.1.2
-# python-jose[cryptography]==3.3.0
-# python-multipart==0.0.9
-# beautifulsoup4==4.12.3
-# docx2txt==0.8
-# python-docx==1.1.0
-# mammoth==1.6.0
-# Pillow==10.2.0
-# lxml==5.1.0
 fastapi
 uvicorn
 motor
@@ -25,8 +7,7 @@ openai
 pdfplumber
 pdf2image
 passlib[bcrypt]
-bcrypt
-python-jose[cryptography]
+argon2-cffi
 python-multipart
 beautifulsoup4
 docx2txt
@@ -35,24 +16,6 @@ mammoth
 Pillow
 lxml
 PyJWT
-fastapi
-uvicorn
-motor
-pymongo
-python-dotenv
-openai
-pdfplumber
-pdf2image
-argon2-cffi
-python-jose
-cryptography
-python-multipart
-beautifulsoup4
-docx2txt
-python-docx
-mammoth
-Pillow
-lxml
 pydantic
 email-validator
-docx2pdf
+cryptography
