@@ -40,7 +40,7 @@ function extractDecision(result) {
   return "-";
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/backend";
+const API_URL = import.meta.env.VITE_API_URL || "https://final-resume-screening-app.onrender.com/backend";
 
 // Resume Screening Component
 function ResumeScreening({ token }) {
