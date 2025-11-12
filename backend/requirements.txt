@@ -26,7 +26,7 @@ pdfplumber
 pdf2image
 passlib[bcrypt]
 bcrypt
-python-jose[cryptography]=
+python-jose[cryptography]
 python-multipart
 beautifulsoup4
 docx2txt
