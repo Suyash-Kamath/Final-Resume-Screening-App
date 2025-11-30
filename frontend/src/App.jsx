@@ -1,48 +1,83 @@
 import { useState, useEffect } from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
-import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
-import { AiOutlineClose } from "react-icons/ai";
+import { 
+  FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, 
+  FaFileAlt, FaChartBar, FaCalendarAlt, FaSignOutAlt, FaUserCircle 
+} from "react-icons/fa";
+import { AiOutlineClose, AiOutlineCloudUpload } from "react-icons/ai";
 import "./App.css";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/backend";
+
+// --- HELPER FUNCTIONS ---
 function extractDecision(result) {
   if (result.decision && result.decision !== "-") {
     if (result.decision.includes("Shortlist"))
-      return (
-        <span>
-          <FaCheckCircle style={{ color: "green", marginRight: 4 }} />{" "}
-          Shortlisted
-        </span>
-      );
+      return <span className="badge badge-success">Shortlisted</span>;
     if (result.decision.includes("Reject"))
-      return (
-        <span>
-          <FaTimesCircle style={{ color: "red", marginRight: 4 }} /> Rejected
-        </span>
-      );
-    return result.decision;
+      return <span className="badge badge-danger">Rejected</span>;
+    return <span className="badge badge-neutral">{result.decision}</span>;
   }
   if (result.result_text) {
     const match = result.result_text.match(/Decision:\s*(Shortlist|Reject)/);
     if (match) {
       return match[1] === "Shortlist" ? (
-        <span>
-          <FaCheckCircle style={{ color: "green", marginRight: 4 }} />{" "}
-          Shortlisted
-        </span>
+        <span className="badge badge-success">Shortlisted</span>
       ) : (
-        <span>
-          <FaTimesCircle style={{ color: "red", marginRight: 4 }} /> Rejected
-        </span>
+        <span className="badge badge-danger">Rejected</span>
       );
     }
   }
-  if (result.error) return "Error";
+  if (result.error) return <span className="badge badge-danger">Error</span>;
   return "-";
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/backend";
+// --- COMPONENTS ---
 
-// Resume Screening Component
+// 1. Sidebar Navigation
+function Sidebar({ currentPage, setCurrentPage, recruiterName, handleLogout }) {
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div className="sidebar-title">ProHire AI</div>
+      </div>
+      
+      <nav className="sidebar-nav">
+        <button 
+          className={`nav-item ${currentPage === "resume-screening" ? "active" : ""}`}
+          onClick={() => setCurrentPage("resume-screening")}
+        >
+          <FaFileAlt style={{ marginRight: 8 }} /> Resume Screening
+        </button>
+        <button 
+          className={`nav-item ${currentPage === "mis-summary" ? "active" : ""}`}
+          onClick={() => setCurrentPage("mis-summary")}
+        >
+          <FaChartBar style={{ marginRight: 8 }} /> MIS Summary
+        </button>
+        <button 
+          className={`nav-item ${currentPage === "daily-reports" ? "active" : ""}`}
+          onClick={() => setCurrentPage("daily-reports")}
+        >
+          <FaCalendarAlt style={{ marginRight: 8 }} /> Daily Reports
+        </button>
+      </nav>
+
+      <div className="sidebar-footer">
+        <div className="user-profile">
+          <div className="user-avatar">
+            {recruiterName ? recruiterName.charAt(0).toUpperCase() : <FaUserCircle />}
+          </div>
+          <div className="user-name">{recruiterName}</div>
+        </div>
+        <button onClick={handleLogout} className="logout-btn">
+          <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+// 2. Resume Screening Page
 function ResumeScreening({ token }) {
   const [jd, setJd] = useState("");
   const [files, setFiles] = useState([]);
@@ -52,49 +87,37 @@ function ResumeScreening({ token }) {
   const [loading, setLoading] = useState(false);
 
   const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files));
+    }
   };
 
   const removeFile = (index) => {
     setFiles(files.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!jd.trim()) {
-      alert("Please enter a job description");
-      return;
-    }
-    if (files.length === 0) {
-      alert("Please select at least one resume file");
-      return;
-    }
+  const handleSubmit = async () => {
+    if (!jd.trim()) return alert("Please enter a job description");
+    if (files.length === 0) return alert("Please select at least one resume");
 
     setLoading(true);
     const formData = new FormData();
     formData.append("job_description", jd);
     formData.append("hiring_type", hiringType);
     formData.append("level", level);
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
+    files.forEach((file) => formData.append("files", file));
 
     try {
       const response = await fetch(`${API_URL}/analyze-resumes/`, {
         method: "POST",
         body: formData,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Analysis failed");
-      }
+      if (!response.ok) throw new Error(data.detail || "Analysis failed");
       setResults(data.results || []);
       setFiles([]);
     } catch (err) {
-      setResults([]);
       alert(`Error: ${err.message}`);
     }
     setLoading(false);
@@ -102,170 +125,179 @@ function ResumeScreening({ token }) {
 
   return (
     <div className="page-content">
-      <h2 className="page-title">Resume Screening</h2>
-      <div className="columns">
-        <div className="left-column">
-          <h3>Job Description</h3>
-          <div style={{ marginBottom: "1rem" }} className="field-row">
-            <label>
-              Hiring Type:
-              <select
-                value={hiringType}
-                onChange={(e) => setHiringType(e.target.value)}
-              >
-                <option value="1">Sales</option>
-                <option value="2">IT</option>
-                <option value="3">Non-Sales</option>
-                <option value="4">Sales Support</option>
-              </select>
-            </label>
-            <label>
-              Level:
-              <select value={level} onChange={(e) => setLevel(e.target.value)}>
-                <option value="1">Fresher</option>
-                <option value="2">Experienced</option>
-              </select>
-            </label>
+      <div className="page-header">
+        <h1 className="page-title">Resume Screening</h1>
+        <p className="page-subtitle">Upload resumes and evaluate them against the job description.</p>
+      </div>
+
+      <div className="grid-2">
+        {/* Left Column: Inputs */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Job Details</h3>
           </div>
-          <textarea
-            value={jd}
-            onChange={(e) => setJd(e.target.value)}
-            placeholder="Paste Job Description here..."
-            rows={20}
-            style={{ width: "100%" }}
-          />
+          
+          <div className="form-group">
+            <label className="form-label">Hiring Type</label>
+            <select 
+              className="form-select"
+              value={hiringType}
+              onChange={(e) => setHiringType(e.target.value)}
+            >
+              <option value="1">Sales</option>
+              <option value="2">IT</option>
+              <option value="3">Non-Sales</option>
+              <option value="4">Sales Support</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Level</label>
+            <select 
+              className="form-select"
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+            >
+              <option value="1">Fresher</option>
+              <option value="2">Experienced</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Job Description</label>
+            <textarea
+              className="form-textarea"
+              value={jd}
+              onChange={(e) => setJd(e.target.value)}
+              placeholder="Paste the job description here..."
+            />
+          </div>
         </div>
-        <div className="right-column">
-          <h3>Upload Resumes</h3>
-          <div className="upload-row">
-            <label className="custom-file-upload">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp"
-                multiple
-                onChange={handleFileChange}
-                style={{ display: "none" }}
-              />
-              Choose Files
-            </label>
-            <button onClick={handleSubmit} disabled={loading}>
-              {loading ? "Evaluating..." : "Evaluate"}
-            </button>
+
+        {/* Right Column: Upload & Actions */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Upload Resumes</h3>
           </div>
+
+          <div className="upload-zone" onClick={() => document.getElementById('file-upload').click()}>
+            <AiOutlineCloudUpload size={48} color="#2563EB" />
+            <p style={{ marginTop: '1rem', color: '#6B7280' }}>Click to upload resumes (PDF, DOCX, Image)</p>
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+          </div>
+
           {files.length > 0 && (
             <div className="file-list">
               {files.map((file, idx) => (
-                <span className="file-item" key={idx}>
-                  {file.name}
-                  <button
-                    type="button"
-                    className="remove-file"
-                    onClick={() => removeFile(idx)}
-                    title="Remove"
-                  >
-                    <AiOutlineClose size={16} />
+                <div className="file-item" key={idx}>
+                  <span>{file.name}</span>
+                  <button className="btn-danger-ghost" onClick={() => removeFile(idx)}>
+                    <AiOutlineClose />
                   </button>
-                </span>
+                </div>
               ))}
             </div>
           )}
-          <div style={{ marginTop: "2rem" }}>
-            {results.length > 0 && (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Resume</th>
-                    <th>Match %</th>
-                    <th>Decision</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((res, idx) => (
-                    <tr key={idx}>
-                      <td data-label="Resume">{res.filename}</td>
-                      <td data-label="Match %">
-                        {res.match_percent !== undefined
-                          ? res.match_percent + "%"
-                          : "-"}
-                      </td>
-                      <td data-label="Decision">{extractDecision(res)}</td>
-                      <td data-label="Details">
-                        <details>
-                          <summary>Show</summary>
-                          <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>
-                            {(res.result_text || res.error)?.replace(
-                              /\*\*(.*?)\*\*/g,
-                              "$1"
-                            )}
-                          </pre>
-                        </details>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+
+          <div style={{ marginTop: '1.5rem' }}>
+            <button 
+              className="btn btn-primary" 
+              style={{ width: '100%' }}
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? "Evaluating..." : "Evaluate Resumes"}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Results Table */}
+      {results.length > 0 && (
+        <div className="card" style={{ marginTop: '2rem' }}>
+          <div className="card-header">
+            <h3 className="card-title">Evaluation Results</h3>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Resume</th>
+                  <th>Match %</th>
+                  <th>Decision</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((res, idx) => (
+                  <tr key={idx}>
+                    <td>{res.filename}</td>
+                    <td>{res.match_percent ? `${res.match_percent}%` : "-"}</td>
+                    <td>{extractDecision(res)}</td>
+                    <td>
+                      <details>
+                        <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View Analysis</summary>
+                        <pre>{(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, "$1")}</pre>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// MIS Summary Component
+// 3. MIS Summary Page
 function MISSummary({ setViewingFile, setViewingFilename }) {
   const [mis, setMis] = useState([]);
-  const [misLoading, setMisLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchMIS = async () => {
-    setMisLoading(true);
+    setLoading(true);
     try {
       const response = await fetch(`${API_URL}/mis-summary`);
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to fetch MIS summary");
-      }
+      if (!response.ok) throw new Error(data.detail);
       setMis(data.summary || []);
     } catch (err) {
-      setMis([]);
-      alert(`Error: ${err.message}`);
+      alert(err.message);
     }
-    setMisLoading(false);
+    setLoading(false);
   };
 
-  const hiringTypeLabel = (val) => {
-    if (!val) return "-";
-    if (val === "1" || val === 1) return "Sales";
-    if (val === "2" || val === 2) return "IT";
-    if (val === "3" || val === 3) return "Non-Sales";
-    if (val === "4" || val === 4) return "Sales Support";
-    return val;
-  };
-
-  const levelLabel = (val) => {
-    if (!val) return "-";
-    if (val === "1" || val === 1) return "Fresher";
-    if (val === "2" || val === 2) return "Experienced";
-    return val;
-  };
+  useEffect(() => { fetchMIS(); }, []);
 
   return (
     <div className="page-content">
-      <div className="mis-summary-section">
-        <h2 className="page-title">MIS Summary</h2>
-        <button
-          onClick={fetchMIS}
-          disabled={misLoading}
-          style={{ marginBottom: "1rem" }}
-        >
-          {misLoading ? "Loading..." : "Show MIS Summary"}
-        </button>
-        {mis.length > 0 && (
+      <div className="page-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 className="page-title">MIS Summary</h1>
+            <p className="page-subtitle">Overview of recruitment activities.</p>
+          </div>
+          <button className="btn btn-outline" onClick={fetchMIS} disabled={loading}>
+            Refresh Data
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Recruiter Name</th>
+                <th>Recruiter</th>
                 <th>Uploads</th>
                 <th>Total Resumes</th>
                 <th>Shortlisted</th>
@@ -276,113 +308,151 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
             <tbody>
               {mis.map((row, idx) => (
                 <tr key={idx}>
-                  <td data-label="Recruiter Name">{row.recruiter_name}</td>
-                  <td data-label="Uploads">{row.uploads}</td>
-                  <td data-label="Total Resumes">{row.resumes}</td>
-                  <td data-label="Shortlisted">{row.shortlisted}</td>
-                  <td data-label="Rejected">{row.rejected}</td>
-                  <td data-label="History">
-                    {row.history && row.history.length > 0 ? (
+                  <td>{row.recruiter_name}</td>
+                  <td>{row.uploads}</td>
+                  <td>{row.resumes}</td>
+                  <td><span className="badge badge-success">{row.shortlisted}</span></td>
+                  <td><span className="badge badge-danger">{row.rejected}</span></td>
+                  <td>
+                    {row.history?.length > 0 ? (
                       <details>
-                        <summary>Show</summary>
-                        <table style={{ fontSize: 12, marginTop: 8 }}>
-                          <thead>
-                            <tr>
-                              <th>Resume Name</th>
-                              <th>Hiring Type</th>
-                              <th>Level</th>
-                              <th>Match %</th>
-                              <th>Decision</th>
-                              <th>Upload Date</th>
-                              <th>Counts/Day</th>
-                              <th>Details</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {row.history.map((h, hidx) => (
-                              <tr key={hidx}>
-                                <td data-label="Resume Name">
-                                  {h.file_id ? (
-                                    <a
-                                      href="#"
-                                      onClick={(e) => {
+                        <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View History</summary>
+                        <div style={{ padding: '1rem', background: '#F9FAFB', marginTop: '0.5rem', borderRadius: '8px' }}>
+                          <table style={{ fontSize: '0.85rem' }}>
+                            <thead>
+                              <tr>
+                                <th>Resume</th>
+                                <th>Decision</th>
+                                <th>Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {row.history.map((h, hidx) => (
+                                <tr key={hidx}>
+                                  <td>
+                                    {h.file_id ? (
+                                      <a href="#" onClick={(e) => {
                                         e.preventDefault();
                                         setViewingFile(h.file_id);
-                                        setViewingFilename(
-                                          h.resume_name || "Unknown"
-                                        );
-                                      }}
-                                      style={{
-                                        color: "#2563eb",
-                                        textDecoration: "none",
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      {h.resume_name || "Unknown"}
-                                    </a>
-                                  ) : (
-                                    h.resume_name || "Unknown"
-                                  )}
-                                </td>
-                                <td data-label="Hiring Type">
-                                  {hiringTypeLabel(h.hiring_type)}
-                                </td>
-                                <td data-label="Level">
-                                  {levelLabel(h.level)}
-                                </td>
-                                <td data-label="Match %">
-                                  {h.match_percent !== undefined &&
-                                  h.match_percent !== null
-                                    ? h.match_percent + "%"
-                                    : "-"}
-                                </td>
-                                <td data-label="Decision">
-                                  {h.decision || "-"}
-                                </td>
-                                <td data-label="Upload Date">
-                                  {h.upload_date || "-"}
-                                </td>
-                                <td data-label="Counts/Day">
-                                  {h.counts_per_day || "-"}
-                                </td>
-                                <td data-label="Details">
-                                  <details>
-                                    <summary>Show</summary>
-                                    <pre
-                                      style={{
-                                        whiteSpace: "pre-wrap",
-                                        fontSize: 11,
-                                      }}
-                                    >
-                                      {(h.details || "").replace(
-                                        /\*\*(.*?)\*\*/g,
-                                        "$1"
-                                      )}
-                                    </pre>
-                                  </details>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                        setViewingFilename(h.resume_name);
+                                      }}>
+                                        {h.resume_name}
+                                      </a>
+                                    ) : h.resume_name}
+                                  </td>
+                                  <td>{h.decision}</td>
+                                  <td>{h.upload_date}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </details>
-                    ) : (
-                      "No history"
-                    )}
+                    ) : "No history"}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
+// 4. Daily Reports Page
+function DailyReports() {
+  const [reportData, setReportData] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [loading, setLoading] = useState(false);
+
+  const fetchReports = async (date) => {
+    setLoading(true);
+    setSelectedDate(date);
+    try {
+      const formattedDate = date.toISOString().split("T")[0];
+      const response = await fetch(`${API_URL}/reports/${formattedDate}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail);
+      setReportData(data);
+    } catch (err) {
+      setReportData(null);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchReports(selectedDate); }, []);
+
+  const downloadCSV = () => {
+    if (!reportData) return;
+    let csv = "Recruiter,Total,Shortlisted,Rejected\n";
+    reportData.reports.forEach(r => {
+      csv += `${r.recruiter_name},${r.total_resumes},${r.shortlisted},${r.rejected}\n`;
+    });
+    const link = document.createElement("a");
+    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+    link.download = `report_${selectedDate.toISOString().split("T")[0]}.csv`;
+    link.click();
+  };
+
+  return (
+    <div className="page-content">
+      <div className="page-header">
+        <h1 className="page-title">Daily Reports</h1>
+        <p className="page-subtitle">Performance metrics for {selectedDate.toLocaleDateString()}.</p>
+      </div>
+
+      <div className="card" style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input 
+          type="date" 
+          className="form-input" 
+          style={{ width: 'auto' }}
+          value={selectedDate.toISOString().split("T")[0]}
+          onChange={(e) => fetchReports(new Date(e.target.value))}
+        />
+        <button className="btn btn-primary" onClick={downloadCSV} disabled={!reportData}>
+          Download CSV
+        </button>
+      </div>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : reportData?.reports?.length > 0 ? (
+        <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+          {reportData.reports.map((row, idx) => (
+            <div className="card" key={idx}>
+              <div className="card-header">
+                <h3 className="card-title">{row.recruiter_name}</h3>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700' }}>{row.total_resumes}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>Total</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--success)' }}>{row.shortlisted}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>Shortlisted</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--danger)' }}>{row.rejected}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#6B7280' }}>Rejected</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p>No data available for this date.</p>
+      )}
+    </div>
+  );
+}
+
+// 5. Resume Viewer Modal
 // Resume Viewer Component
 function ResumeViewer({ fileId, filename, onClose, token }) {
   const [fileData, setFileData] = useState(null);
+  const [blobUrl, setBlobUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -399,6 +469,19 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
           throw new Error(data.detail || "Failed to load file");
         }
         setFileData(data);
+        
+        // Convert base64 to blob URL for better PDF rendering
+        if (data.content_type?.includes("pdf")) {
+          const byteCharacters = atob(data.content);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+        }
       } catch (err) {
         setError(err.message);
       }
@@ -408,6 +491,11 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
     if (fileId) {
       fetchFile();
     }
+    
+    // Cleanup blob URL on unmount
+    return () => {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [fileId, token]);
 
   const handleDownload = async () => {
@@ -444,12 +532,14 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.8)",
+          backgroundColor: "rgba(0,0,0,0.5)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 1000,
+          backdropFilter: "blur(4px)",
         }}
+        onClick={onClose}
       >
         <div style={{ color: "white", fontSize: "1.2rem" }}>Loading...</div>
       </div>
@@ -465,12 +555,14 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.8)",
+          backgroundColor: "rgba(0,0,0,0.5)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 1000,
+          backdropFilter: "blur(4px)",
         }}
+        onClick={onClose}
       >
         <div
           style={{
@@ -479,6 +571,7 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
             borderRadius: "8px",
             textAlign: "center",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div style={{ color: "red", marginBottom: "1rem" }}>{error}</div>
           <button onClick={onClose}>Close</button>
@@ -495,848 +588,397 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.9)",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         zIndex: 1000,
+        padding: "20px",
       }}
+      onClick={onClose}
     >
       <div
         style={{
-          position: "absolute",
-          top: "10px",
-          left: "50%",
-          transform: "translateX(-50%)",
+          backgroundColor: "white",
+          borderRadius: "12px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          width: "90%",
+          maxWidth: "900px",
+          height: "85vh",
           display: "flex",
-          gap: "1rem",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={handleDownload}
+        {/* Header */}
+        <div
           style={{
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            padding: "0.5rem 1rem",
-            borderRadius: "4px",
-            cursor: "pointer",
+            padding: "1rem 1.5rem",
+            borderBottom: "1px solid #e5e7eb",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            backgroundColor: "#f9fafb",
           }}
         >
-          Download
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            background: "#ef4444",
-            color: "white",
-            border: "none",
-            padding: "0.5rem 1rem",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
-      </div>
-
-      <div
-        style={{ padding: "60px 20px 20px", height: "100vh", overflow: "auto" }}
-      >
-        {fileData && (
-          <div
-            style={{
-              backgroundColor: "white",
-              margin: "0 auto",
-              maxWidth: "900px",
-              minHeight: "calc(100vh - 80px)",
-            }}
-          >
-            {fileData.content_type?.includes("pdf") ? (
-              <iframe
-                src={`data:application/pdf;base64,${fileData.content}`}
-                style={{
-                  width: "100%",
-                  height: "calc(100vh - 80px)",
-                  border: "none",
-                }}
-                title={filename}
-              />
-            ) : fileData.content_type?.includes("image") ? (
-              <img
-                src={`data:${fileData.content_type};base64,${fileData.content}`}
-                alt={filename}
-                style={{ width: "100%", height: "auto" }}
-              />
-            ) : (
-              <div style={{ padding: "2rem", textAlign: "center" }}>
-                <h3>{filename}</h3>
-                <p>File type: {fileData.content_type}</p>
-                <p>Size: {(fileData.size / 1024).toFixed(2)} KB</p>
-                <p>
-                  Preview not available for this file type. Use the download
-                  button to view the file.
-                </p>
-              </div>
-            )}
+          <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#232946" }}>
+            {filename}
+          </h3>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={handleDownload}
+              style={{
+                background: "#2563eb",
+                color: "white",
+                border: "none",
+                padding: "0.5rem 1rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+              }}
+            >
+              Download
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                padding: "0.5rem 1rem",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "0.9rem",
+                fontWeight: "500",
+              }}
+            >
+              Close
+            </button>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-
-// Daily Reports Component (Modern Design)
-function DailyReports() {
-  const [reportData, setReportData] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [loading, setLoading] = useState(false);
-
-  const fetchReportsForDate = async (date) => {
-    setLoading(true);
-    setSelectedDate(date);
-
-    // Format date as YYYY-MM-DD
-    const formattedDate = date.toISOString().split("T")[0];
-
-    try {
-      const response = await fetch(`${API_URL}/reports/${formattedDate}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Failed to fetch reports");
-      setReportData(data);
-    } catch (err) {
-      setReportData(null);
-      alert(`Error: ${err.message}`);
-    }
-
-    setLoading(false);
-  };
-
-  const downloadReport = () => {
-    if (!reportData) return;
-
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `Daily Report - ${reportData.date}\n\n`;
-    csvContent += "Recruiter Name,Total Resumes,Shortlisted,Rejected\n";
-
-    reportData.reports.forEach((row) => {
-      csvContent += `${row.recruiter_name},${row.total_resumes},${row.shortlisted},${row.rejected}\n`;
-    });
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute(
-      "download",
-      `daily_report_${selectedDate.toISOString().split("T")[0]}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Automatically fetch today's report on mount
-  useEffect(() => {
-    fetchReportsForDate(selectedDate);
-  }, []);
-
-  return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Daily Reports</h2>
-
-      {/* Date Selector */}
-      <div style={styles.dateSelector}>
-        <label style={{ marginRight: "10px", fontWeight: 500 }}>Select Date:</label>
-        <input
-          type="date"
-          value={selectedDate.toISOString().split("T")[0]}
-          onChange={(e) => {
-            const pickedDate = new Date(e.target.value);
-            fetchReportsForDate(pickedDate);
-          }}
-          style={styles.dateInput}
-        />
-        <button style={styles.downloadBtn} onClick={downloadReport} disabled={!reportData}>
-          Download CSV
-        </button>
-      </div>
-
-      {/* Report Cards */}
-      {loading ? (
-        <p style={{ textAlign: "center", marginTop: "3rem", color: "#666" }}>Loading report...</p>
-      ) : reportData && reportData.reports.length > 0 ? (
-        <div style={styles.cardsContainer}>
-          {reportData.reports.map((row, idx) => (
-            <div key={idx} style={styles.card}>
-              <h3 style={styles.cardTitle}>{row.recruiter_name}</h3>
-              <div style={styles.cardContent}>
-                <div style={styles.stat}>
-                  <span style={styles.statNumber}>{row.total_resumes}</span>
-                  <span style={styles.statLabel}>Total Resumes</span>
-                </div>
-                <div style={styles.stat}>
-                  <span style={{ ...styles.statNumber, color: "#4caf50" }}>{row.shortlisted}</span>
-                  <span style={styles.statLabel}>Shortlisted</span>
-                </div>
-                <div style={styles.stat}>
-                  <span style={{ ...styles.statNumber, color: "#f44336" }}>{row.rejected}</span>
-                  <span style={styles.statLabel}>Rejected</span>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
-      ) : (
-        <p style={{ textAlign: "center", marginTop: "3rem", color: "#666" }}>
-          No data available for {selectedDate.toLocaleDateString()}
-        </p>
-      )}
-    </div>
-  );
-}
 
-// Styles
-const styles = {
-  container: {
-    maxWidth: "900px",
-    margin: "2rem auto",
-    padding: "0 1rem",
-    fontFamily: "Arial, sans-serif",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: "2rem",
-    color: "#232946",
-    fontSize: "2rem",
-  },
-  dateSelector: {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "1rem",
-    marginBottom: "2rem",
-    flexWrap: "wrap",
-  },
-  dateInput: {
-    padding: "8px 12px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    fontSize: "1rem",
-  },
-  downloadBtn: {
-    padding: "8px 16px",
-    backgroundColor: "#4F75FF",
-    color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "600",
-    transition: "all 0.2s",
-  },
-  cardsContainer: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-    gap: "1.5rem",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    padding: "1.5rem",
-    transition: "transform 0.2s, box-shadow 0.2s",
-    cursor: "pointer",
-  },
-  cardTitle: {
-    fontSize: "1.2rem",
-    marginBottom: "1rem",
-    color: "#232946",
-    textAlign: "center",
-  },
-  cardContent: {
-    display: "flex",
-    justifyContent: "space-around",
-  },
-  stat: {
-    textAlign: "center",
-  },
-  statNumber: {
-    fontSize: "1.5rem",
-    fontWeight: "700",
-    display: "block",
-  },
-  statLabel: {
-    fontSize: "0.85rem",
-    color: "#666",
-  },
-};
-
-
-// Dashboard Component (Navigation)
-function Dashboard({
-  currentPage,
-  setCurrentPage,
-  recruiterName,
-  handleLogout,
-}) {
-  return (
-    <div className="dashboard-header">
-      <div className="navigation-bar">
-        <div className="nav-links">
-          <button
-            className={`nav-link ${
-              currentPage === "resume-screening" ? "active" : ""
-            }`}
-            onClick={() => setCurrentPage("resume-screening")}
-          >
-            Resume Screening
-          </button>
-          <button
-            className={`nav-link ${
-              currentPage === "mis-summary" ? "active" : ""
-            }`}
-            onClick={() => setCurrentPage("mis-summary")}
-          >
-            MIS Summary
-          </button>
-          <button
-            className={`nav-link ${
-              currentPage === "daily-reports" ? "active" : ""
-            }`}
-            onClick={() => setCurrentPage("daily-reports")}
-          >
-            Daily Reports
-          </button>
-        </div>
-        <div className="user-info">
-          <span>
-            Logged in as <b>{recruiterName}</b>
-          </span>
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
+        {/* Content */}
+        <div style={{ flex: 1, overflow: "hidden", backgroundColor: "#f3f4f6" }}>
+          {fileData && (
+            <>
+              {fileData.content_type?.includes("pdf") ? (
+                blobUrl ? (
+                  <iframe
+                    src={blobUrl}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                    }}
+                    title={filename}
+                  />
+                ) : (
+                  <div style={{ padding: "2rem", textAlign: "center" }}>
+                    Loading PDF...
+                  </div>
+                )
+              ) : fileData.content_type?.includes("image") ? (
+                <div
+                  style={{
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "1rem",
+                  }}
+                >
+                  <img
+                    src={`data:${fileData.content_type};base64,${fileData.content}`}
+                    alt={filename}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
+              ) : (
+                <div style={{ padding: "2rem", textAlign: "center" }}>
+                  <h3>{filename}</h3>
+                  <p>File type: {fileData.content_type}</p>
+                  <p>Size: {(fileData.size / 1024).toFixed(2)} KB</p>
+                  <p>
+                    Preview not available for this file type. Use the download
+                    button to view the file.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
+// --- MAIN APP COMPONENT ---
 function App() {
-  // Auth state
   const [authMode, setAuthMode] = useState("login");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [resetToken, setResetToken] = useState("");
   const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [recruiterName, setRecruiterName] = useState(
-    localStorage.getItem("recruiterName") || ""
-  );
-  const [authError, setAuthError] = useState("");
-  const [authSuccess, setAuthSuccess] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // Navigation state
+  const [recruiterName, setRecruiterName] = useState(localStorage.getItem("recruiterName") || "");
   const [currentPage, setCurrentPage] = useState("resume-screening");
-
-  // Password visibility state
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
-
-  // Add these states in the App function
   const [viewingFile, setViewingFile] = useState(null);
   const [viewingFilename, setViewingFilename] = useState("");
 
-  // Check for reset token in URL on component mount
+  // Auth States
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Check for reset token in URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tokenFromUrl = urlParams.get("token");
-    if (tokenFromUrl) {
-      setResetToken(tokenFromUrl);
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token");
+    if (tokenParam) {
+      setResetToken(tokenParam);
       setAuthMode("reset-password");
-      verifyResetToken(tokenFromUrl);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // Verify reset token
-  const verifyResetToken = async (token) => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/verify-reset-token/${token}`);
+      const form = new FormData();
+      form.append("username", username);
+      form.append("password", password);
+      const res = await fetch(`${API_URL}/login`, { method: "POST", body: form });
       const data = await res.json();
-      if (!res.ok) {
-        setAuthError(
-          "Invalid or expired reset link. Please request a new one."
-        );
-        setAuthMode("forgot-password");
-      } else {
-        setEmail(data.email);
-        setAuthSuccess("Reset link verified. Please enter your new password.");
-      }
+      if (!res.ok) throw new Error(data.detail);
+      
+      setToken(data.access_token);
+      setRecruiterName(data.recruiter_name);
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("recruiterName", data.recruiter_name);
     } catch (err) {
-      setAuthError("Invalid or expired reset link. Please request a new one.");
-      setAuthMode("forgot-password");
+      alert(err.message);
     }
+    setLoading(false);
   };
 
-  // Auth handlers
-  const handleAuth = async (e) => {
+
+
+  const handleForgotPassword = async (e) => {
     e.preventDefault();
-    setAuthLoading(true);
-    setAuthError("");
-    setAuthSuccess("");
-
+    setLoading(true);
     try {
-      if (authMode === "login") {
-        const form = new FormData();
-        form.append("username", username);
-        form.append("password", password);
-        const res = await fetch(`${API_URL}/login`, {
-          method: "POST",
-          body: form,
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Login failed");
-
-        setToken(data.access_token);
-        setRecruiterName(data.recruiter_name);
-        localStorage.setItem("token", data.access_token);
-        localStorage.setItem("recruiterName", data.recruiter_name);
-      } else if (authMode === "register") {
-        const res = await fetch(`${API_URL}/register`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: username,
-            email: email,
-            password: password,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Registration failed");
-
-        setAuthMode("login");
-        setAuthSuccess(
-          "Registration successful! Please login with your credentials."
-        );
-        setUsername("");
-        setEmail("");
-        setPassword("");
-      } else if (authMode === "forgot-password") {
-        const res = await fetch(`${API_URL}/forgot-password`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: email,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok)
-          throw new Error(data.detail || "Failed to send reset email");
-
-        setAuthSuccess(
-          "If the email exists in our system, you will receive a password reset link shortly. Please check your inbox and spam folder."
-        );
-        setEmail("");
-      } else if (authMode === "reset-password") {
-        if (newPassword !== confirmPassword) {
-          throw new Error("Passwords do not match");
-        }
-        if (newPassword.length < 6) {
-          throw new Error("Password must be at least 6 characters long");
-        }
-
-        const res = await fetch(`${API_URL}/reset-password`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            token: resetToken,
-            new_password: newPassword,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Failed to reset password");
-
-        setAuthSuccess(
-          "Password reset successful! You can now login with your new password."
-        );
-        setAuthMode("login");
-        setNewPassword("");
-        setConfirmPassword("");
-        setResetToken("");
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-      }
+      const res = await fetch(`${API_URL}/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      alert(data.msg || "If the email exists, a reset link has been sent.");
+      setAuthMode("login");
     } catch (err) {
-      setAuthError(err.message);
+      alert(err.message);
     }
-    setAuthLoading(false);
+    setLoading(false);
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, new_password: password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Reset failed");
+      alert("Password reset successfully! Please login with your new password.");
+      setAuthMode("login");
+      setPassword("");
+    } catch (err) {
+      alert(err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+      });
+      if (!res.ok) throw new Error("Registration failed");
+      alert("Registration successful! Please login.");
+      setAuthMode("login");
+    } catch (err) {
+      alert(err.message);
+    }
+    setLoading(false);
   };
 
   const handleLogout = () => {
     setToken("");
     setRecruiterName("");
-    localStorage.removeItem("token");
-    localStorage.removeItem("recruiterName");
-    setCurrentPage("resume-screening");
+    localStorage.clear();
   };
 
-  const resetAuthState = () => {
-    setAuthError("");
-    setAuthSuccess("");
-    setUsername("");
-    setEmail("");
-    setPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-  };
-
-  const renderAuthForm = () => {
-    switch (authMode) {
-      case "login":
-        return (
-          <>
-            <h2>Recruiter Login</h2>
-            <form
-              onSubmit={handleAuth}
-              style={{
-                marginBottom: 16,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Recruiter Username"
-                required
-              />
-              <div className="password-wrapper">
-                <input
-                  type={showLoginPassword ? "text" : "password"}
+  if (!token) {
+    return (
+      <div className="login-layout">
+        <div className="login-card">
+          <h1 className="login-title">ProHire AI</h1>
+          <p className="login-subtitle">Smart Resume Screening Platform</p>
+          
+          {authMode === "login" ? (
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  placeholder="Username" 
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  type="password" 
+                  placeholder="Password" 
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
+                  onChange={e => setPassword(e.target.value)}
                   required
                 />
-                <span
-                  className="password-toggle"
-                  onClick={() => setShowLoginPassword((prev) => !prev)}
-                  title={showLoginPassword ? "Hide Password" : "Show Password"}
-                >
-                  {showLoginPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
               </div>
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? "Logging in..." : "Login"}
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
               </button>
+              <div className="auth-actions">
+                <button type="button" className="auth-link" onClick={() => setAuthMode("register")}>
+                  Need an account? Register
+                </button>
+                <button type="button" className="auth-link" onClick={() => setAuthMode("forgot-password")}>
+                  Forgot Password?
+                </button>
+              </div>
             </form>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                onClick={() => {
-                  setAuthMode("register");
-                  resetAuthState();
-                }}
-                style={{ fontSize: 12 }}
-              >
-                Need an account? Register
-              </button>
-              <button
-                onClick={() => {
-                  setAuthMode("forgot-password");
-                  resetAuthState();
-                }}
-                style={{
-                  fontSize: 12,
-                  color: "#007bff",
-                  background: "none",
-                  border: "none",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
-          </>
-        );
-
-      case "register":
-        return (
-          <>
-            <h2>Recruiter Registration</h2>
-            <form
-              onSubmit={handleAuth}
-              style={{
-                marginBottom: 16,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Recruiter Username"
-                required
-              />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email Address"
-                required
-              />
-              <div className="password-wrapper">
-                <input
-                  type={showRegisterPassword ? "text" : "password"}
+          ) : authMode === "register" ? (
+            <form onSubmit={handleRegister}>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  placeholder="Username" 
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  type="email" 
+                  placeholder="Email" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  type="password" 
+                  placeholder="Password" 
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? "Registering..." : "Register"}
+              </button>
+              <button type="button" className="auth-link" onClick={() => setAuthMode("login")}>
+                Already have an account? Login
+              </button>
+            </form>
+          ) : authMode === "forgot-password" ? (
+            <form onSubmit={handleForgotPassword}>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  type="email" 
+                  placeholder="Enter your registered email" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? "Sending Link..." : "Send Reset Link"}
+              </button>
+              <button type="button" className="auth-back-link" onClick={() => setAuthMode("login")}>
+                Back to Login
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword}>
+              <div className="form-group">
+                <input 
+                  className="form-input" 
+                  type="password" 
+                  placeholder="Enter new password" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   required
                   minLength={6}
                 />
-                <span
-                  className="password-toggle"
-                  onClick={() => setShowRegisterPassword((prev) => !prev)}
-                  title={
-                    showRegisterPassword ? "Hide Password" : "Show Password"
-                  }
-                >
-                  {showRegisterPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
               </div>
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? "Registering..." : "Register"}
+              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+              <button type="button" className="auth-back-link" onClick={() => setAuthMode("login")}>
+                Back to Login
               </button>
             </form>
-            <button
-              onClick={() => {
-                setAuthMode("login");
-                resetAuthState();
-              }}
-              style={{ fontSize: 12 }}
-            >
-              Already have an account? Login
-            </button>
-          </>
-        );
-
-      case "forgot-password":
-        return (
-          <>
-            <h2>Forgot Password</h2>
-            <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
-              Enter your email address and we'll send you a link to reset your
-              password.
-            </p>
-            <form
-              onSubmit={handleAuth}
-              style={{
-                marginBottom: 16,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email Address"
-                required
-              />
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? "Sending..." : "Send Reset Link"}
-              </button>
-            </form>
-            <button
-              onClick={() => {
-                setAuthMode("login");
-                resetAuthState();
-              }}
-              style={{ fontSize: 12 }}
-            >
-              Back to Login
-            </button>
-          </>
-        );
-
-      case "reset-password":
-        return (
-          <>
-            <h2>Reset Password</h2>
-            <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
-              Enter your new password for: <strong>{email}</strong>
-            </p>
-            <form
-              onSubmit={handleAuth}
-              style={{
-                marginBottom: 16,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <div className="password-wrapper">
-                <input
-                  type={showResetPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New Password"
-                  required
-                  minLength={6}
-                />
-                <span
-                  className="password-toggle"
-                  onClick={() => setShowResetPassword((prev) => !prev)}
-                  title={showResetPassword ? "Hide Password" : "Show Password"}
-                >
-                  {showResetPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-              </div>
-              <div className="password-wrapper">
-                <input
-                  type={showResetPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm New Password"
-                  required
-                  minLength={6}
-                />
-                <span
-                  className="password-toggle"
-                  onClick={() => setShowResetPassword((prev) => !prev)}
-                  title={showResetPassword ? "Hide Password" : "Show Password"}
-                >
-                  {showResetPassword ? <FaEyeSlash /> : <FaEye />}
-                </span>
-              </div>
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? "Resetting..." : "Reset Password"}
-              </button>
-            </form>
-            <button
-              onClick={() => {
-                setAuthMode("login");
-                resetAuthState();
-                setResetToken("");
-                window.history.replaceState(
-                  {},
-                  document.title,
-                  window.location.pathname
-                );
-              }}
-              style={{ fontSize: 12 }}
-            >
-              Back to Login
-            </button>
-          </>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case "resume-screening":
-        return <ResumeScreening token={token} />;
-      case "mis-summary":
-        return (
-          <MISSummary
-            setViewingFile={setViewingFile}
-            setViewingFilename={setViewingFilename}
-          />
-        );
-      case "daily-reports":
-        return <DailyReports />;
-      default:
-        return <ResumeScreening token={token} />;
-    }
-  };
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      {!token ? (
-        <div className="login-container">
-          <h1>ProHire</h1>
-          <p className="tagline">
-            Apply karo chahe kahin se, shortlisting hoga yahin se.
-          </p>
-          <div className="auth-box">
-            {renderAuthForm()}
-            {authError && (
-              <div
-                style={{
-                  color: "red",
-                  marginTop: 16,
-                  padding: 12,
-                  backgroundColor: "#ffeaea",
-                  border: "1px solid #ffcdd2",
-                  borderRadius: 4,
-                }}
-              >
-                {authError}
-              </div>
-            )}
-            {authSuccess && (
-              <div
-                style={{
-                  color: "green",
-                  marginTop: 16,
-                  padding: 12,
-                  backgroundColor: "#eafaf1",
-                  border: "1px solid #c8e6c9",
-                  borderRadius: 4,
-                }}
-              >
-                {authSuccess}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="main-container">
-          <h1>ProHire</h1>
-          <p className="tagline">
-            Apply karo chahe kahin se, shortlisting hoga yahin se.
-          </p>
-          <Dashboard
-            currentPage={currentPage}
-            setCurrentPage={setCurrentPage}
-            recruiterName={recruiterName}
-            handleLogout={handleLogout}
-          />
-          {renderCurrentPage()}
-        </div>
-      )}
-      {/* ADD THIS PART - Resume Viewer Modal */}
+    <div className="app-layout">
+      <Sidebar 
+        currentPage={currentPage} 
+        setCurrentPage={setCurrentPage} 
+        recruiterName={recruiterName} 
+        handleLogout={handleLogout} 
+      />
+      
+      <main className="main-content">
+        {currentPage === "resume-screening" && <ResumeScreening token={token} />}
+        {currentPage === "mis-summary" && <MISSummary setViewingFile={setViewingFile} setViewingFilename={setViewingFilename} />}
+        {currentPage === "daily-reports" && <DailyReports />}
+      </main>
+
       {viewingFile && (
-        <ResumeViewer
-          fileId={viewingFile}
-          filename={viewingFilename}
-          onClose={() => {
-            setViewingFile(null);
-            setViewingFilename("");
-          }}
-          token={token}
+        <ResumeViewer 
+          fileId={viewingFile} 
+          filename={viewingFilename} 
+          onClose={() => setViewingFile(null)} 
+          token={token} 
         />
       )}
-    </>
+    </div>
   );
 }
 
