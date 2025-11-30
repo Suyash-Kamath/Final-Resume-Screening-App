@@ -38,7 +38,7 @@ function Sidebar({ currentPage, setCurrentPage, recruiterName, handleLogout }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-title">ProHire AI</div>
+        <div className="sidebar-title">ProHire</div>
       </div>
       
       <nav className="sidebar-nav">
@@ -836,8 +836,8 @@ function App() {
     return (
       <div className="login-layout">
         <div className="login-card">
-          <h1 className="login-title">ProHire AI</h1>
-          <p className="login-subtitle">Smart Resume Screening Platform</p>
+          <h1 className="login-title">ProHire</h1>
+          <p className="login-subtitle">Apply karo chahe kahin se, shortlisting hoga yahin se.</p>
           
           {authMode === "login" ? (
             <form onSubmit={handleLogin}>
