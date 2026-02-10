@@ -314,110 +314,124 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
         </div>
       </div>
 
-      <div className="card">
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Recruiter</th>
-                <th>Uploads</th>
-                <th>Total Resumes</th>
-                <th>Shortlisted</th>
-                <th>Rejected</th>
-                <th>History</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mis.map((row, idx) => (
-                <Fragment key={idx}>
-                  <tr>
-                    <td>{row.recruiter_name}</td>
-                    <td>{row.uploads}</td>
-                    <td>{row.resumes}</td>
-                    <td><span className="badge badge-success">{row.shortlisted}</span></td>
-                    <td><span className="badge badge-danger">{row.rejected}</span></td>
-                    <td>
-                      {row.history?.length > 0 ? (
-                        <button
-                          type="button"
-                          className="history-toggle"
-                          onClick={() => toggleHistory(idx)}
-                        >
-                          {openHistory[idx] ? "Hide History" : "View History"}
-                        </button>
-                      ) : "No history"}
-                    </td>
-                  </tr>
-                  {openHistory[idx] && row.history?.length > 0 && (
-                    <tr className="history-row-container">
-                      <td colSpan={6}>
-                        <div className="history-panel">
-                          <table className="history-table">
-                            <thead>
-                              <tr>
-                                <th>Resume</th>
-                                <th>Hiring Type</th>
-                                <th>Level</th>
-                                <th>Match %</th>
-                                <th>Decision</th>
-                                <th>Upload Date</th>
-                                <th>Counts/Day</th>
-                                <th>Details</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {row.history.map((h, hidx) => (
-                                <Fragment key={hidx}>
-                                  <tr className="history-row">
-                                    <td>
-                                      {h.file_id ? (
-                                        <a href="#" onClick={(e) => {
-                                          e.preventDefault();
-                                          setViewingFile(h.file_id);
-                                          setViewingFilename(h.resume_name);
-                                        }}>
-                                          {h.resume_name}
-                                        </a>
-                                      ) : h.resume_name}
-                                    </td>
-                                    <td>{h.hiring_type || "-"}</td>
-                                    <td>{h.level || "-"}</td>
-                                    <td>{h.match_percent !== null && h.match_percent !== undefined ? `${h.match_percent}%` : "-"}</td>
-                                    <td>{h.decision}</td>
-                                    <td>{h.upload_date || "-"}</td>
-                                    <td>{h.counts_per_day ?? 0}</td>
-                                    <td>
-                                      <button
-                                        type="button"
-                                        className="btn btn-outline btn-sm"
-                                        onClick={() => toggleDetails(`${idx}-${hidx}`)}
-                                      >
-                                        {openDetails[`${idx}-${hidx}`] ? "Hide" : "Show"}
-                                      </button>
-                                    </td>
-                                  </tr>
-                                  <tr className={`history-details-row ${openDetails[`${idx}-${hidx}`] ? "is-open" : ""}`}>
-                                    <td colSpan={8}>
-                                      <div className="history-details">
-                                        <pre className="analysis-pre">
-                                          {(h.details || "").replace(/\*\*(.*?)\*\*/g, "$1")}
-                                        </pre>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                </Fragment>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="mis-grid">
+        {mis.map((row, idx) => {
+          const historyOpen = openHistory[idx];
+          return (
+            <div className="mis-card" key={row.recruiter_name || idx}>
+              <div className="mis-card-header">
+                <div>
+                  <div className="mis-name">{row.recruiter_name}</div>
+                  <div className="mis-meta">
+                    {row.uploads} uploads · {row.resumes} resumes
+                  </div>
+                </div>
+                {row.history?.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => toggleHistory(idx)}
+                  >
+                    {historyOpen ? "Hide History" : "View History"}
+                  </button>
+                ) : (
+                  <span className="mis-empty">No history</span>
+                )}
+              </div>
+
+              <div className="mis-stats">
+                <div className="mis-stat">
+                  <div className="mis-stat-label">Shortlisted</div>
+                  <div className="mis-stat-value success">{row.shortlisted}</div>
+                </div>
+                <div className="mis-stat">
+                  <div className="mis-stat-label">Rejected</div>
+                  <div className="mis-stat-value danger">{row.rejected}</div>
+                </div>
+                <div className="mis-stat">
+                  <div className="mis-stat-label">Total Resumes</div>
+                  <div className="mis-stat-value">{row.resumes}</div>
+                </div>
+              </div>
+
+              {historyOpen && row.history?.length > 0 && (
+                <div className="history-panel">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Resume</th>
+                        <th>Hiring Type</th>
+                        <th>Level</th>
+                        <th>Match %</th>
+                        <th>Decision</th>
+                        <th>Upload Date</th>
+                        <th>Counts/Day</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {row.history.map((h, hidx) => {
+                        const detailKey = `${idx}-${hidx}`;
+                        return (
+                          <Fragment key={detailKey}>
+                            <tr className="history-row">
+                              <td>
+                                {h.file_id ? (
+                                  <button
+                                    type="button"
+                                    className="history-link"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setViewingFile(h.file_id);
+                                      setViewingFilename(h.resume_name);
+                                    }}
+                                  >
+                                    {h.resume_name}
+                                  </button>
+                                ) : (
+                                  <span className="history-link disabled">{h.resume_name}</span>
+                                )}
+                              </td>
+                              <td>{h.hiring_type || "-"}</td>
+                              <td>{h.level || "-"}</td>
+                              <td>{h.match_percent !== null && h.match_percent !== undefined ? `${h.match_percent}%` : "-"}</td>
+                              <td>{h.decision}</td>
+                              <td>{h.upload_date || "-"}</td>
+                              <td>{h.counts_per_day ?? 0}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    toggleDetails(detailKey);
+                                  }}
+                                >
+                                  {openDetails[detailKey] ? "Hide" : "Show"}
+                                </button>
+                              </td>
+                            </tr>
+                            <tr className={`history-details-row ${openDetails[detailKey] ? "is-open" : ""}`}>
+                              <td colSpan={8}>
+                                <div className="history-details">
+                                  <pre className="analysis-pre">
+                                    {(h.details || "").replace(/\*\*(.*?)\*\*/g, "$1")}
+                                  </pre>
+                                </div>
+                              </td>
+                            </tr>
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

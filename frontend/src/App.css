@@ -394,6 +394,25 @@ tr:hover {
   text-decoration: underline;
 }
 
+.history-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+.history-link:hover {
+  text-decoration: underline;
+}
+
+.history-link.disabled {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .analysis-pre {
   max-height: 320px;
   overflow-y: auto;
@@ -419,7 +438,7 @@ tr:hover {
   animation: historyFade 0.25s ease;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   overflow: visible;
 }
 
@@ -428,6 +447,96 @@ tr:hover {
   width: min(100%, 1100px);
   font-size: 0.85rem;
   border-collapse: collapse;
+}
+
+.history-table td:last-child {
+  text-align: center;
+}
+
+.history-table .btn {
+  pointer-events: auto;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.mis-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.mis-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem;
+}
+
+.mis-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.mis-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.mis-meta {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.mis-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.mis-stat {
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.mis-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.mis-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.mis-stat-value.success {
+  color: var(--success);
+}
+
+.mis-stat-value.danger {
+  color: var(--danger);
+}
+
+.mis-empty {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .mis-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 
@@ -465,11 +574,25 @@ tr:hover {
   padding: 0 0.75rem;
 }
 
+.history-details-row {
+  display: none;
+}
+
+.history-details-row.is-open {
+  display: table-row;
+}
+
 .history-details-row.is-open .history-details {
   max-height: 420px;
   opacity: 1;
   transform: translateY(0);
   padding: 0.5rem 0.75rem 1rem;
+}
+
+.history-link {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .btn-sm {
