@@ -919,7 +919,7 @@ function App() {
               <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
                 {loading ? "Registering..." : "Register"}
               </button>
-              <button type="button" className="auth-link" onClick={() => setAuthMode("login")}>
+              <button type="button" className="auth-link auth-switch" onClick={() => setAuthMode("login")}>
                 Already have an account? Login
               </button>
             </form>
