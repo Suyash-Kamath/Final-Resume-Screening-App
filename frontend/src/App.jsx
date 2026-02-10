@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { 
   FaFileAlt, FaChartBar, FaCalendarAlt, FaSignOutAlt, FaUserCircle 
 } from "react-icons/fa";
@@ -272,6 +272,7 @@ function ResumeScreening({ token }) {
 function MISSummary({ setViewingFile, setViewingFilename }) {
   const [mis, setMis] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [openDetails, setOpenDetails] = useState({});
 
   const fetchMIS = async () => {
     setLoading(true);
@@ -280,6 +281,7 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail);
       setMis(data.summary || []);
+      setOpenDetails({});
     } catch (err) {
       alert(err.message);
     }
@@ -287,6 +289,10 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
   };
 
   useEffect(() => { fetchMIS(); }, []);
+  
+  const toggleDetails = (key) => {
+    setOpenDetails((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="page-content">
@@ -327,32 +333,61 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
                     {row.history?.length > 0 ? (
                       <details>
                         <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View History</summary>
-                        <div style={{ padding: '1rem', background: '#F9FAFB', marginTop: '0.5rem', borderRadius: '8px' }}>
-                          <table style={{ fontSize: '0.85rem' }}>
+                        <div className="history-panel">
+                          <table className="history-table">
                             <thead>
                               <tr>
                                 <th>Resume</th>
+                                <th>Hiring Type</th>
+                                <th>Level</th>
+                                <th>Match %</th>
                                 <th>Decision</th>
-                                <th>Date</th>
+                                <th>Upload Date</th>
+                                <th>Counts/Day</th>
+                                <th>Details</th>
                               </tr>
                             </thead>
                             <tbody>
                               {row.history.map((h, hidx) => (
-                                <tr key={hidx}>
-                                  <td>
-                                    {h.file_id ? (
-                                      <a href="#" onClick={(e) => {
-                                        e.preventDefault();
-                                        setViewingFile(h.file_id);
-                                        setViewingFilename(h.resume_name);
-                                      }}>
-                                        {h.resume_name}
-                                      </a>
-                                    ) : h.resume_name}
-                                  </td>
-                                  <td>{h.decision}</td>
-                                  <td>{h.upload_date}</td>
-                                </tr>
+                                <Fragment key={hidx}>
+                                  <tr className="history-row">
+                                    <td>
+                                      {h.file_id ? (
+                                        <a href="#" onClick={(e) => {
+                                          e.preventDefault();
+                                          setViewingFile(h.file_id);
+                                          setViewingFilename(h.resume_name);
+                                        }}>
+                                          {h.resume_name}
+                                        </a>
+                                      ) : h.resume_name}
+                                    </td>
+                                    <td>{h.hiring_type || "-"}</td>
+                                    <td>{h.level || "-"}</td>
+                                    <td>{h.match_percent !== null && h.match_percent !== undefined ? `${h.match_percent}%` : "-"}</td>
+                                    <td>{h.decision}</td>
+                                    <td>{h.upload_date || "-"}</td>
+                                    <td>{h.counts_per_day ?? 0}</td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        className="btn btn-outline btn-sm"
+                                        onClick={() => toggleDetails(`${idx}-${hidx}`)}
+                                      >
+                                        {openDetails[`${idx}-${hidx}`] ? "Hide" : "Show"}
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  <tr className={`history-details-row ${openDetails[`${idx}-${hidx}`] ? "is-open" : ""}`}>
+                                    <td colSpan={8}>
+                                      <div className="history-details">
+                                        <pre className="analysis-pre">
+                                          {(h.details || "").replace(/\*\*(.*?)\*\*/g, "$1")}
+                                        </pre>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                </Fragment>
                               ))}
                             </tbody>
                           </table>

@@ -410,6 +410,61 @@ tr:hover {
   color: var(--text-main);
 }
 
+.history-panel {
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.03);
+  margin-top: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  animation: historyFade 0.25s ease;
+}
+
+.history-table {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+}
+
+.history-row td {
+  vertical-align: top;
+}
+
+.history-details-row td {
+  padding: 0;
+  border-bottom: none;
+}
+
+.history-details {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.25s ease;
+  padding: 0 0.75rem;
+}
+
+.history-details-row.is-open .history-details {
+  max-height: 420px;
+  opacity: 1;
+  transform: translateY(0);
+  padding: 0.5rem 0.75rem 1rem;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+@keyframes historyFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- BADGES --- */
 .badge {
   display: inline-flex;
