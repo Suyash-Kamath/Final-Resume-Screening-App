@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
-  FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, 
   FaFileAlt, FaChartBar, FaCalendarAlt, FaSignOutAlt, FaUserCircle 
 } from "react-icons/fa";
 import { AiOutlineClose, AiOutlineCloudUpload } from "react-icons/ai";
@@ -85,6 +84,7 @@ function ResumeScreening({ token }) {
   const [hiringType, setHiringType] = useState("1");
   const [level, setLevel] = useState("1");
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
     if (e.target.files) {
@@ -93,7 +93,11 @@ function ResumeScreening({ token }) {
   };
 
   const removeFile = (index) => {
-    setFiles(files.filter((_, i) => i !== index));
+    const nextFiles = files.filter((_, i) => i !== index);
+    setFiles(nextFiles);
+    if (nextFiles.length === 0 && fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async () => {
@@ -117,6 +121,9 @@ function ResumeScreening({ token }) {
       if (!response.ok) throw new Error(data.detail || "Analysis failed");
       setResults(data.results || []);
       setFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -180,11 +187,12 @@ function ResumeScreening({ token }) {
             <h3 className="card-title">Upload Resumes</h3>
           </div>
 
-          <div className="upload-zone" onClick={() => document.getElementById('file-upload').click()}>
+          <div className="upload-zone" onClick={() => fileInputRef.current?.click()}>
             <AiOutlineCloudUpload size={48} color="#2563EB" />
             <p style={{ marginTop: '1rem', color: '#6B7280' }}>Click to upload resumes (PDF, DOCX, Image)</p>
             <input
               id="file-upload"
+              ref={fileInputRef}
               type="file"
               multiple
               accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
@@ -244,7 +252,9 @@ function ResumeScreening({ token }) {
                     <td>
                       <details>
                         <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View Analysis</summary>
-                        <pre>{(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, "$1")}</pre>
+                        <pre className="analysis-pre">
+                          {(res.result_text || res.error)?.replace(/\*\*(.*?)\*\*/g, "$1")}
+                        </pre>
                       </details>
                     </td>
                   </tr>
@@ -457,6 +467,7 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let objectUrl = null;
     const fetchFile = async () => {
       try {
         const response = await fetch(`${API_URL}/view-resume/${fileId}`, {
@@ -479,8 +490,10 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
           }
           const byteArray = new Uint8Array(byteNumbers);
           const blob = new Blob([byteArray], { type: 'application/pdf' });
-          const url = URL.createObjectURL(blob);
-          setBlobUrl(url);
+          objectUrl = URL.createObjectURL(blob);
+          setBlobUrl(objectUrl);
+        } else {
+          setBlobUrl(null);
         }
       } catch (err) {
         setError(err.message);
@@ -492,9 +505,9 @@ function ResumeViewer({ fileId, filename, onClose, token }) {
       fetchFile();
     }
     
-    // Cleanup blob URL on unmount
+    // Cleanup blob URL on unmount or when file changes
     return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [fileId, token]);
 
