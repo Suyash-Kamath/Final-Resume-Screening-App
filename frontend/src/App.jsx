@@ -334,6 +334,28 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
                       <details>
                         <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View History</summary>
                         <div className="history-panel">
+                          <div className="history-summary">
+                            <div>
+                              <div className="history-summary-label">Recruiter</div>
+                              <div className="history-summary-value">{row.recruiter_name}</div>
+                            </div>
+                            <div>
+                              <div className="history-summary-label">Uploads</div>
+                              <div className="history-summary-value">{row.uploads}</div>
+                            </div>
+                            <div>
+                              <div className="history-summary-label">Total Resumes</div>
+                              <div className="history-summary-value">{row.resumes}</div>
+                            </div>
+                            <div>
+                              <div className="history-summary-label">Shortlisted</div>
+                              <div className="history-summary-value">{row.shortlisted}</div>
+                            </div>
+                            <div>
+                              <div className="history-summary-label">Rejected</div>
+                              <div className="history-summary-value">{row.rejected}</div>
+                            </div>
+                          </div>
                           <table className="history-table">
                             <thead>
                               <tr>
