@@ -273,6 +273,7 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
   const [mis, setMis] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openDetails, setOpenDetails] = useState({});
+  const [openHistory, setOpenHistory] = useState({});
 
   const fetchMIS = async () => {
     setLoading(true);
@@ -282,6 +283,7 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
       if (!response.ok) throw new Error(data.detail);
       setMis(data.summary || []);
       setOpenDetails({});
+      setOpenHistory({});
     } catch (err) {
       alert(err.message);
     }
@@ -292,6 +294,10 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
   
   const toggleDetails = (key) => {
     setOpenDetails((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+  
+  const toggleHistory = (key) => {
+    setOpenHistory((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -323,16 +329,28 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
             </thead>
             <tbody>
               {mis.map((row, idx) => (
-                <tr key={idx}>
-                  <td>{row.recruiter_name}</td>
-                  <td>{row.uploads}</td>
-                  <td>{row.resumes}</td>
-                  <td><span className="badge badge-success">{row.shortlisted}</span></td>
-                  <td><span className="badge badge-danger">{row.rejected}</span></td>
-                  <td>
-                    {row.history?.length > 0 ? (
-                      <details>
-                        <summary style={{ color: 'var(--primary)', cursor: 'pointer' }}>View History</summary>
+                <Fragment key={idx}>
+                  <tr>
+                    <td>{row.recruiter_name}</td>
+                    <td>{row.uploads}</td>
+                    <td>{row.resumes}</td>
+                    <td><span className="badge badge-success">{row.shortlisted}</span></td>
+                    <td><span className="badge badge-danger">{row.rejected}</span></td>
+                    <td>
+                      {row.history?.length > 0 ? (
+                        <button
+                          type="button"
+                          className="history-toggle"
+                          onClick={() => toggleHistory(idx)}
+                        >
+                          {openHistory[idx] ? "Hide History" : "View History"}
+                        </button>
+                      ) : "No history"}
+                    </td>
+                  </tr>
+                  {openHistory[idx] && row.history?.length > 0 && (
+                    <tr className="history-row-container">
+                      <td colSpan={6}>
                         <div className="history-panel">
                           <div className="history-summary">
                             <div>
@@ -414,10 +432,10 @@ function MISSummary({ setViewingFile, setViewingFilename }) {
                             </tbody>
                           </table>
                         </div>
-                      </details>
-                    ) : "No history"}
-                  </td>
-                </tr>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
