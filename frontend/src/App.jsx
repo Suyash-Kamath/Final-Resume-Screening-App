@@ -917,7 +917,7 @@ function App() {
       <div className="login-layout">
         <div className="login-card">
           <h1 className="login-title">ProHire</h1>
-          <p className="login-subtitle">Smart Resume Screening Platform</p>
+          <p className="login-subtitle">Apply karo chahe kahin se, shortlisting hoga yahin se.</p>
           
           {authMode === "login" ? (
             <form onSubmit={handleLogin}>
